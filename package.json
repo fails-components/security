@@ -1,0 +1,49 @@
+{
+  "name": "fails-components-security",
+  "version": "0.0.1",
+  "description": "Supplies security format classes for use within the fails ecosystem",
+  "author": "Marten Richter",
+  "license": "AGPL-3.0-or-later",
+  "repository": "martenrichter/fails-components-security",
+  "main": "dist/security.js",
+  "module": "dist/security.modern.js",
+  "source": "src/security.js",
+  "engines": {
+    "node": ">=14"
+  },
+  "scripts": {
+    "build": "microbundle-crl --no-compress --format modern,cjs",
+    "start": "microbundle-crl watch --no-compress --format modern,cjs",
+    "prepublish": "run-s build",
+    "test": "run-s test:unit test:lint test:build",
+    "test:build": "run-s build",
+    "test:lint": "eslint ."
+  },
+  "devDependencies": {
+    "babel-eslint": "^10.0.3",
+    "classnames": "^2.2.6",
+    "cross-env": "^7.0.3",
+    "eslint": "^7.19.0",
+    "eslint-config-prettier": "^7.2.0",
+    "eslint-config-standard": "^16.0.2",
+    "eslint-config-standard-react": "^11.0.1",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-prettier": "^3.3.1",
+    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-standard": "^4.1.0",
+    "gh-pages": "^3.1.0",
+    "microbundle-crl": "^0.13.11",
+    "npm-run-all": "^4.1.5",
+    "prettier": "^2.2.1"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "express-jwt": "^6.0.0",
+    "jsonwebtoken": "^8.5.1",
+    "redlock": "^4.2.0",
+    "url-signer": "^0.1.4"
+  }
+}
