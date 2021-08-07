@@ -149,7 +149,7 @@ export class FailsJWTSigner {
         promstore.push(...myprom)
 
         cursor = scanret[0]
-      } while (cursor !== 0)
+      } while (cursor !== '0')
       const keyres = await Promise.all(promstore)
       const idoffset = ('JWTKEY:' + this.type + ':private:').length
       this.keys = keyres
