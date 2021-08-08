@@ -21,7 +21,7 @@ import jwt from 'jsonwebtoken'
 import Redlock from 'redlock'
 import jwtexpress from 'express-jwt'
 import { promisify } from 'util'
-import { generateKeyPair } from 'crypto'
+import { generateKeyPair, createHash } from 'crypto'
 import signer from 'url-signer'
 import { writeFile, mkdir } from 'fs/promises'
 
@@ -227,7 +227,6 @@ export class FailsJWTVerifier {
   express() {
     const secretCallback = async (req, payload, done) => {
       const keyid = payload.kid
-      console.log('payload', payload)
       const time = Date.now()
 
       if (
@@ -280,6 +279,21 @@ export class FailsAssets {
         this.dataurl +
         signer.getSignedUrl('/' + this.shatofilenameLocal(sha, mimetype))
       )
+    } else if (this.webservertype === 'nginx') {
+      const url = '/' + this.shatofilenameLocal(sha, mimetype)
+      const expires = new Date().getTime() + 1000 * 60 * 60 * 24
+      const input = expires + url + ' ' + this.privateKey
+      const binaryHash = createHash('md5').update(input).digest()
+      const base64Value = Buffer.from(binaryHash).toString('base64')
+      const mdhash = base64Value
+        .replace(/=/g, '')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+
+      let mydataurl = this.dataurl
+      if (mydataurl === '/') mydataurl = ''
+
+      return mydataurl + url + '?md5=' + mdhash + '&expires=' + expires
     }
   }
 
