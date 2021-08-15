@@ -23,7 +23,7 @@ import jwtexpress from 'express-jwt'
 import { promisify } from 'util'
 import { generateKeyPair, createHash } from 'crypto'
 import signer from 'url-signer'
-import { writeFile, mkdir } from 'fs/promises'
+import { writeFile, mkdir, rm } from 'fs/promises'
 
 export class FailsJWTSigner {
   constructor(args) {
@@ -271,6 +271,7 @@ export class FailsAssets {
     this.shatofilenameLocal = this.shatofilenameLocal.bind(this)
     this.getFileURL = this.getFileURL.bind(this)
     this.saveFile = this.saveFile.bind(this)
+    this.shadeletelocal = this.shadeletelocal.bind(this)
   }
 
   getFileURL(sha, mimetype) {
@@ -310,6 +311,12 @@ export class FailsAssets {
     const dir =
       this.datadir + '/' + shahex.substr(0, 2) + '/' + shahex.substr(2, 4)
     return dir + '/' + shahex + this.mimeToExtension(mime)
+  }
+
+  async shadeletelocal(shahex, ext) {
+    const filename =
+      this.datadir + '/' + shahex.substr(0, 2) + '/' + shahex.substr(2, 4)
+    await rm(filename + '.' + ext)
   }
 
   async shamkdirLocal(sha) {
