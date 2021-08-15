@@ -314,9 +314,9 @@ export class FailsAssets {
   }
 
   async shadeletelocal(shahex, ext) {
-    const filename =
+    const dir =
       this.datadir + '/' + shahex.substr(0, 2) + '/' + shahex.substr(2, 4)
-    await rm(filename + '.' + ext)
+    await rm(dir + '/' + shahex + '.' + ext)
   }
 
   async shamkdirLocal(sha) {
