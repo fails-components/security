@@ -1,6 +1,6 @@
 {
   "name": "@fails-components/security",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Supplies security format classes for use within the fails ecosystem",
   "author": "Marten Richter",
   "license": "AGPL-3.0-or-later",
@@ -26,26 +26,26 @@
     "babel-eslint": "^10.0.3",
     "classnames": "^2.2.6",
     "cross-env": "^7.0.3",
-    "eslint": "^7.19.0",
+    "eslint": "^7.32.0",
     "eslint-config-prettier": "^7.2.0",
     "eslint-config-standard": "^16.0.2",
     "eslint-config-standard-react": "^11.0.1",
-    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-import": "^2.24.2",
     "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-prettier": "^3.3.1",
+    "eslint-plugin-prettier": "^3.4.1",
     "eslint-plugin-promise": "^4.2.1",
-    "eslint-plugin-react": "^7.22.0",
+    "eslint-plugin-react": "^7.26.0",
     "eslint-plugin-standard": "^4.1.0",
     "gh-pages": "^3.1.0",
     "microbundle": "^0.13.3",
     "npm-run-all": "^4.1.5",
-    "prettier": "^2.2.1"
+    "prettier": "^2.4.1"
   },
   "files": [
     "dist"
   ],
   "dependencies": {
-    "express-jwt": "^6.0.0",
+    "express-jwt": "^6.1.0",
     "jsonwebtoken": "^8.5.1",
     "redlock": "^4.2.0",
     "url-signer": "^0.1.4"
