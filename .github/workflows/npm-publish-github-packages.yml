@@ -7,6 +7,10 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - master
+      - next
+
   workflow_dispatch:
     inputs:
       logLevel:
@@ -45,8 +49,18 @@ jobs:
           registry-url: https://npm.pkg.github.com/
       - run: npm ci
       - run: npm publish --tag stable
+        if: ${{ github.ref == 'refs/heads/master' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: npm publish --tag next
+        if: ${{ github.ref == 'refs/heads/next' }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm dist-tag add @fails-components/security@${{ steps.extract_version.outputs.version }} latest
+        if: ${{ github.ref == 'refs/heads/master' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: npm dist-tag add @fails-components/security@${{ steps.extract_version.outputs.version }} latestunstable
+        if: ${{ github.ref == 'refs/heads/next' }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
