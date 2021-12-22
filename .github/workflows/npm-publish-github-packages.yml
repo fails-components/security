@@ -6,6 +6,8 @@ name: Node.js Package
 on:
   release:
     types: [created]
+    branches:
+      - main
 
 jobs:
   build:
@@ -30,7 +32,11 @@ jobs:
         with:
           node-version: 14
           registry-url: https://npm.pkg.github.com/
+      - name: get-npm-version
+        id: package-version
+        uses: martinbeentjes/npm-get-version-action@master
       - run: npm ci
-      - run: npm publish
+      - run: npm publish --tag stable
+      - run: npm dist-tag add @fails-components/security@${{ steps.package-version.outputs.current-version}} latest
         env:
           NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
