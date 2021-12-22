@@ -1,6 +1,6 @@
 {
   "name": "@fails-components/security",
-  "version": "1.0.0-rc.1",
+  "version": "1.0.0-rc.2",
   "description": "Supplies security format classes for use within the fails ecosystem",
   "author": "Marten Richter",
   "license": "AGPL-3.0-or-later",
