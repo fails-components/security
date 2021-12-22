@@ -4,11 +4,10 @@
 name: Node.js Package
 
 on:
-  release:
-    types: [created]
-    branches:
-      - main
-
+  push:
+    tags:
+      - 'v*'
+  
 jobs:
   build:
     runs-on: ubuntu-latest
