@@ -5,8 +5,9 @@ name: Node.js Package
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - 'master'
+      - 'next'
 
   workflow_dispatch:
     inputs:
