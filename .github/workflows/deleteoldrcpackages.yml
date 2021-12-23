@@ -1,4 +1,4 @@
-name: Node.js Package publish
+name: Node.js Package deletion
 
 on:
   push:
