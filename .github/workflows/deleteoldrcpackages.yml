@@ -21,6 +21,6 @@ jobs:
     steps:
     - uses: actions/delete-package-versions@v2
       with: 
-        package-name: '@fails-components/security'
+        package-name: 'security'
         min-versions-to-keep: 10
         delete-only-pre-release-versions: "true"
