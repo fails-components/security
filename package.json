@@ -12,7 +12,7 @@
   "module": "dist/security.modern.js",
   "source": "src/security.js",
   "engines": {
-    "node": ">=14"
+    "node": ">=16"
   },
   "scripts": {
     "build": "microbundle --no-compress --format modern,cjs",
