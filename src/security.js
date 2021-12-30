@@ -80,8 +80,6 @@ export class FailsJWTSigner {
         console.log('Generate private public key pair for ' + this.type)
         const id = Math.random().toString(36).substr(2, 9) // not the best for crypto, but does not matter
         const pgenerateKeyPair = promisify(generateKeyPair)
-        const client = this.redis
-        const set = promisify(this.redis.set).bind(client)
 
         try {
           const result = await pgenerateKeyPair('ec', {
@@ -98,13 +96,13 @@ export class FailsJWTSigner {
             }
           })
           await Promise.all([
-            set(
+            this.redis.set(
               'JWTKEY:' + this.type + ':private:' + id,
               result.privateKey,
               'EX',
               60 * 60 * 12
             ),
-            set(
+            this.redis.set(
               'JWTKEY:' + this.type + ':public:' + id,
               result.publicKey,
               'EX',
@@ -127,14 +125,11 @@ export class FailsJWTSigner {
     this.keys = []
 
     let cursor = 0
-    const client = this.redis
-    const scan = promisify(this.redis.scan).bind(client)
-    const get = promisify(this.redis.get).bind(client)
 
     try {
       const promstore = []
       do {
-        const scanret = await scan(
+        const scanret = await this.redis.scan(
           cursor,
           'MATCH',
           'JWTKEY:' + this.type + ':private:*',
@@ -144,7 +139,7 @@ export class FailsJWTSigner {
 
         // console.log("purge scanret2", scanret2);
         const myprom = scanret[1].map((el2) => {
-          return Promise.all([el2, get(el2)])
+          return Promise.all([el2, this.redis.get(el2)])
         })
         promstore.push(...myprom)
 
@@ -208,11 +203,9 @@ export class FailsJWTVerifier {
 
   async fetchKey(key) {
     delete this.keys[key] // delete, important for key expiry
-    const client = this.redis
-    const get = promisify(this.redis.get).bind(client)
     const name = 'JWTKEY:' + this.type + ':public:' + key
     try {
-      let publick = get(name)
+      let publick = this.redis.get(name)
       publick = await publick
       // console.log("public",publick,name);
       if (!publick) return // not found
@@ -239,7 +232,6 @@ export class FailsJWTVerifier {
       }
       done(null, this.keys[keyid].publicKey)
     }
-
     return jwtexpress({
       secret: secretCallback,
       algorithms: ['ES512'],
