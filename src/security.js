@@ -32,23 +32,17 @@ export function RedisRedlockProxy(server) {
     _failsredisserver: server, // we do not need this but...
     evalsha: async (hash, args, callback) => {
       try {
-        console.log('evalsha debug', hash, args, callback)
-        const result = await server.evalsha(hash, args)
-        console.log('evalsha debug2', result)
+        const result = await server.evalSha(hash, args)
         callback(undefined, result)
       } catch (error) {
-        console.log('evalsha error', error)
         callback(error)
       }
     },
     eval: async (hash, args, callback) => {
       try {
-        console.log('eval debug', args, callback)
         const result = await server.eval(args)
-        console.log('eva debug2', result)
         callback(null, result)
       } catch (error) {
-        console.log('eval error', error)
         callback(error)
       }
     }
