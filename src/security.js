@@ -155,13 +155,10 @@ export class FailsJWTSigner {
       const promstore = []
       console.log('redis scan', this.redis.scan, this.redis)
       do {
-        const scanret = await this.redis.scan(
-          cursor,
-          'MATCH',
-          'JWTKEY:' + this.type + ':private:*',
-          'COUNT',
-          1000
-        ) // keys are seldom
+        const scanret = await this.redis.scan(cursor, {
+          MATCH: 'JWTKEY:' + this.type + ':private:*',
+          COUNT: 1000
+        }) // keys are seldom
 
         console.log('show scanret', scanret)
         const myprom = scanret[1].map((el2) => {
