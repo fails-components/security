@@ -93,17 +93,12 @@ export class FailsJWTSigner {
   }
 
   async recheckKeys() {
-    console.log('rcK 1')
     await this.keysUpdateInt()
     let lock = null
-    console.log('rcK 2')
     if (this.keys.length === 0) {
       // ok again, but this time with locking to make sure no other process is generating keys, while we do
-      console.log('rcK 3')
       lock = await this.redlock.lock('keys:' + this.type + ':loadlock', 2000)
-      console.log('rcK 4')
       await this.keysUpdateInt()
-      console.log('rcK 5')
       // do we still need a new key
       if (this.keys.length === 0) {
         console.log('Generate private public key pair for ' + this.type)
@@ -136,7 +131,6 @@ export class FailsJWTSigner {
               { EX: 60 * 60 * 24 }
             )
           ])
-          console.log('rcK 6')
         } catch (error) {
           console.log('recheckKeys error key create', error)
         }
@@ -168,7 +162,7 @@ export class FailsJWTSigner {
         promstore.push(...myprom)
 
         cursor = scanret.cursor
-      } while (cursor !== '0')
+      } while (cursor !== 0)
       const keyres = await Promise.all(promstore)
       const idoffset = ('JWTKEY:' + this.type + ':private:').length
       this.keys = keyres
