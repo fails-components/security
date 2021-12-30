@@ -149,31 +149,33 @@ export class FailsJWTSigner {
     // ok first we get all keys in data base
     this.keys = []
 
+    let cursor = 0
+
     try {
       const promstore = []
-      console.log('kui in')
-      let it = 0
-      for await (const key of this.redis.scanIterator({
-        TYPE: 'string', // `SCAN` only
-        MATCH: 'JWTKEY:' + this.type + ':private:*',
-        COUNT: 1000
-      })) {
-        if (key) {
-          console.log('kui', key)
-          const myprom = Promise.all([key, this.redis.get(key)])
-          promstore.push(...myprom)
-        }
-        it++
-        console.log('kui it', it)
-      }
-      console.log('kui out')
+      console.log('redis scan', this.redis.scan, this.redis)
+      do {
+        const scanret = await this.redis.scan(
+          cursor,
+          'MATCH',
+          'JWTKEY:' + this.type + ':private:*',
+          'COUNT',
+          1000
+        ) // keys are seldom
+
+        console.log('show scanret', scanret)
+        const myprom = scanret[1].map((el2) => {
+          return Promise.all([el2, this.redis.get(el2)])
+        })
+        promstore.push(...myprom)
+
+        cursor = scanret[0]
+      } while (cursor !== '0')
       const keyres = await Promise.all(promstore)
-      console.log('kui out 1')
       const idoffset = ('JWTKEY:' + this.type + ':private:').length
       this.keys = keyres
         .filter((el) => el.length === 2)
         .map((el) => ({ id: el[0].substr(idoffset), privatekey: el[1] }))
-      console.log('kui out 2', this.keys)
     } catch (error) {
       console.log('keysUpdateInt error', error)
     }
