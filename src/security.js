@@ -149,27 +149,16 @@ export class FailsJWTSigner {
     // ok first we get all keys in data base
     this.keys = []
 
-    let cursor = 0
-
     try {
       const promstore = []
-      do {
-        const scanret = await this.redis.scan(
-          cursor,
-          'MATCH',
-          'JWTKEY:' + this.type + ':private:*',
-          'COUNT',
-          1000
-        ) // keys are seldom
-
-        // console.log("purge scanret2", scanret2);
-        const myprom = scanret[1].map((el2) => {
-          return Promise.all([el2, this.redis.get(el2)])
-        })
+      for await (const key of this.redis.scanIterator({
+        TYPE: 'string', // `SCAN` only
+        MATCH: 'JWTKEY:' + this.type + ':private:*',
+        COUNT: 1000
+      })) {
+        const myprom = Promise.all([key, this.redis.get(key)])
         promstore.push(...myprom)
-
-        cursor = scanret[0]
-      } while (cursor !== '0')
+      }
       const keyres = await Promise.all(promstore)
       const idoffset = ('JWTKEY:' + this.type + ':private:').length
       this.keys = keyres
