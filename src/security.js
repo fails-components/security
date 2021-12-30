@@ -36,6 +36,13 @@ export function RedisRedlockProxy(server) {
         console.log('evalsha debug t', ['EVALSHA', hash, ...targs])
         const result = await server.sendCommand(['EVALSHA', hash, ...targs])
         console.log('evalsha debug result2', result)
+        console.log(
+          'evalsha test',
+          result === args[0] || result === '' + args[0],
+          result === args[0],
+          result === '' + args[0],
+          args[0]
+        )
         callback(null, result[0])
       } catch (error) {
         console.log('evalsha debug error', error)
