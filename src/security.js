@@ -151,6 +151,8 @@ export class FailsJWTSigner {
 
     try {
       const promstore = []
+      console.log('kui in')
+      let it = 0
       for await (const key of this.redis.scanIterator({
         TYPE: 'string', // `SCAN` only
         MATCH: 'JWTKEY:' + this.type + ':private:*',
@@ -161,6 +163,8 @@ export class FailsJWTSigner {
           const myprom = Promise.all([key, this.redis.get(key)])
           promstore.push(...myprom)
         }
+        it++
+        console.log('kui it', it)
       }
       console.log('kui out')
       const keyres = await Promise.all(promstore)
