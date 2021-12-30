@@ -98,8 +98,11 @@ export class FailsJWTSigner {
 
     if (this.keys.length === 0) {
       // ok again, but this time with locking to make sure no other process is generating keys, while we do
+      console.log('rKs 1', 'keys:' + this.type + ':loadlock')
       lock = await this.redlock.lock('keys:' + this.type + ':loadlock', 2000)
+      console.log('rKs 2')
       await this.keysUpdateInt()
+      console.log('rKs 3')
       // do we still need a new key
       if (this.keys.length === 0) {
         console.log('Generate private public key pair for ' + this.type)
@@ -156,14 +159,18 @@ export class FailsJWTSigner {
         MATCH: 'JWTKEY:' + this.type + ':private:*',
         COUNT: 1000
       })) {
+        console.log('kui', key)
         const myprom = Promise.all([key, this.redis.get(key)])
         promstore.push(...myprom)
       }
+      console.log('kui out')
       const keyres = await Promise.all(promstore)
+      console.log('kui out 1')
       const idoffset = ('JWTKEY:' + this.type + ':private:').length
       this.keys = keyres
         .filter((el) => el.length === 2)
         .map((el) => ({ id: el[0].substr(idoffset), privatekey: el[1] }))
+      console.log('kui out 2', this.keys)
     } catch (error) {
       console.log('keysUpdateInt error', error)
     }
