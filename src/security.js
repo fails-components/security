@@ -25,6 +25,31 @@ import { generateKeyPair, createHash } from 'crypto'
 import signer from 'url-signer'
 import { writeFile, mkdir, rm } from 'fs/promises'
 
+// this function converts a new redis object to an old one usable with redlock
+
+export function RedisRedlockProxy(server) {
+  const retobj = {
+    _failsredisserver: server, // we do not need this but...
+    evalsha: async (hash, args, callback) => {
+      try {
+        const result = await server.evalsha(hash, args)
+        callback(null, result)
+      } catch (error) {
+        callback(error)
+      }
+    },
+    eval: async (hash, args, callback) => {
+      try {
+        const result = await server.eval(args)
+        callback(null, result)
+      } catch (error) {
+        callback(error)
+      }
+    }
+  }
+  return retobj
+}
+
 export class FailsJWTSigner {
   constructor(args) {
     this.redis = args.redis // redis database holding the keys
@@ -35,7 +60,7 @@ export class FailsJWTSigner {
 
     this.secret = args.secret
 
-    this.redlock = new Redlock([this.redis], {
+    this.redlock = new Redlock([RedisRedlockProxy(this.redis)], {
       driftFactor: 0.01, // multiplied by lock ttl to determine drift time
 
       retryCount: 10,
