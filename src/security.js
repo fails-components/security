@@ -33,7 +33,7 @@ export function RedisRedlockProxy(server) {
     evalsha: async (hash, args, callback) => {
       try {
         console.log('evalsha debug', hash, args)
-        const result = await server.evalSha(hash, args)
+        const result = await server.evalSha(hash, ...args)
         console.log('evalsha debug result2', result)
         callback(undefined, result)
       } catch (error) {
@@ -44,7 +44,7 @@ export function RedisRedlockProxy(server) {
     eval: async (args, callback) => {
       try {
         console.log('eval debug', args)
-        const result = await server.eval(args)
+        const result = await server.eval(...args)
         console.log('eval debug result2', result)
         callback(null, result)
       } catch (error) {
