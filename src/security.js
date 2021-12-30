@@ -38,7 +38,7 @@ export function RedisRedlockProxy(server) {
         callback(error)
       }
     },
-    eval: async (hash, args, callback) => {
+    eval: async (args, callback) => {
       try {
         const result = await server.eval(args)
         callback(null, result)
@@ -153,20 +153,18 @@ export class FailsJWTSigner {
 
     try {
       const promstore = []
-      console.log('redis scan', this.redis.scan, this.redis)
       do {
         const scanret = await this.redis.scan(cursor, {
           MATCH: 'JWTKEY:' + this.type + ':private:*',
           COUNT: 1000
         }) // keys are seldom
 
-        console.log('show scanret', scanret)
-        const myprom = scanret[1].map((el2) => {
+        const myprom = scanret.keys.map((el2) => {
           return Promise.all([el2, this.redis.get(el2)])
         })
         promstore.push(...myprom)
 
-        cursor = scanret[0]
+        cursor = scanret.cursor
       } while (cursor !== '0')
       const keyres = await Promise.all(promstore)
       const idoffset = ('JWTKEY:' + this.type + ':private:').length
