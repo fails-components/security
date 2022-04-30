@@ -106,6 +106,7 @@ export class FailsJWTSigner {
         console.log('Generate private public key pair for ' + this.type)
         const id = Math.random().toString(36).substr(2, 9) // not the best for crypto, but does not matter
         const pgenerateKeyPair = promisify(generateKeyPair)
+        console.log('new key id:', id)
 
         try {
           const result = await pgenerateKeyPair('ec', {
@@ -133,6 +134,7 @@ export class FailsJWTSigner {
               { EX: 60 * 60 * 24 }
             )
           ])
+          console.log('new key stored:', id, Date.now())
         } catch (error) {
           console.log('recheckKeys error key create', error)
         }
@@ -202,6 +204,12 @@ export class FailsJWTVerifier {
           await this.fetchKey(keyid)
         }
         // console.log("keys",keyid, this.type, this.keys[keyid]);
+        if (!this.keys[keyid]) {
+          console.log('unknown key abort', keyid, this.type, time)
+          return next(
+            new Error('Authentification Error, unknown keyid ' + keyid)
+          )
+        }
         jwt.verify(
           socket.handshake.auth.token,
           this.keys[keyid].publicKey /* TODO */,
