@@ -235,7 +235,7 @@ export class FailsJWTVerifier {
     try {
       let publick = this.redis.get(name)
       publick = await publick
-      // console.log("public",publick,name);
+      // console.log('public', publick, name)
       if (!publick) return // not found
       this.keys[key] = {}
       this.keys[key].publicKey = publick
@@ -243,6 +243,16 @@ export class FailsJWTVerifier {
     } catch (err) {
       console.log('Error fetchKey', err)
     }
+  }
+
+  async getPublicKey(keyid) {
+    const time = Date.now()
+
+    if (!this.keys[keyid] || this.keys[keyid].fetched + 60 * 1000 * 10 < time) {
+      await this.fetchKey(keyid)
+      if (!this.keys[keyid]) return null
+    }
+    return this.keys[keyid].publicKey
   }
 
   express() {
