@@ -267,7 +267,7 @@ export class FailsJWTVerifier {
       ) {
         await this.fetchKey(keyid)
         if (!this.keys[keyid])
-          throw new Error('unknown or expired key or db error'))
+          throw new Error('unknown or expired key or db error')
       }
       return this.keys[keyid].publicKey
     }
