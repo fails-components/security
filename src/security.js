@@ -450,14 +450,20 @@ export class FailsAssets {
         this.datadir + '/' + shahex.substr(0, 2) + '/' + shahex.substr(2, 4)
       await rm(dir + '/' + shahex + '.' + ext)
     } else if (this.savefile === 'openstackswift') {
-      const path =
-        '/v1/' + this.swiftaccount + '/' + this.swiftcontainer + '/' + shahex
-      const response = await axios.delete(this.swiftbaseurl + path, {
-        header: { 'X-Auth-Token': await this.openstackToken() }
-      })
-      if (response?.status !== 204) {
+      let response
+      try {
+        const path =
+          '/v1/' + this.swiftaccount + '/' + this.swiftcontainer + '/' + shahex
+        response = await axios.delete(this.swiftbaseurl + path, {
+          header: { 'X-Auth-Token': await this.openstackToken() }
+        })
+        if (response?.status !== 204) {
+          console.log('axios response', response)
+          throw new Error('delete failed for' + shahex)
+        }
+      } catch (error) {
         console.log('axios response', response)
-        throw new Error('delete failed for' + shahex)
+        console.log('problem axios delete', error)
       }
     } else {
       throw new Error('unimplemented delete assets:' + this.savefile)
@@ -478,19 +484,25 @@ export class FailsAssets {
 
       await writeFile(filename, input)
     } else if (this.savefile === 'openstackswift') {
-      const shahex = sha.toString('hex')
-      const path =
-        '/v1/' + this.swiftaccount + '/' + this.swiftcontainer + '/' + shahex
-      const config = {
-        headers: {
-          'X-Auth-Token': await this.openstackToken(),
-          'Content-Type': mime
+      let response
+      try {
+        const shahex = sha.toString('hex')
+        const path =
+          '/v1/' + this.swiftaccount + '/' + this.swiftcontainer + '/' + shahex
+        const config = {
+          headers: {
+            'X-Auth-Token': await this.openstackToken(),
+            'Content-Type': mime
+          }
         }
-      }
-      const response = await axios.put(this.swiftbaseurl + path, input, config)
-      if (response?.status !== 201) {
+        response = await axios.put(this.swiftbaseurl + path, input, config)
+        if (response?.status !== 201) {
+          console.log('axios response', response)
+          throw new Error('save failed for' + shahex)
+        }
+      } catch (error) {
         console.log('axios response', response)
-        throw new Error('save failed for' + shahex)
+        console.log('problem axios save', error)
       }
     } else throw new Error('unsupported savefile method ' + this.savefile)
   }
