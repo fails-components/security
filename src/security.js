@@ -455,11 +455,13 @@ export class FailsAssets {
       const response = await axios.delete(this.swiftbaseurl + path, {
         header: { 'X-Auth-Token': await this.openstackToken() }
       })
-      if (response.length !== 0) {
+      if (response?.status !== 204) {
         console.log('axios response', response)
         throw new Error('delete failed for' + shahex)
       }
-    } else throw new Error('unimplemented delete assets:' + this.savefile)
+    } else {
+      throw new Error('unimplemented delete assets:' + this.savefile)
+    }
   }
 
   async shamkdirLocal(sha) {
