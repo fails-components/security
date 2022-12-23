@@ -11,6 +11,7 @@
   "main": "src/security.js",
   "module": "src/security.js",
   "source": "src/security.js",
+  "type": "module",
   "engines": {
     "node": ">=16"
   },
