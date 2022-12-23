@@ -22,7 +22,6 @@ import Redlock from 'redlock'
 import { expressjwt as jwtexpress } from 'express-jwt'
 import { promisify } from 'util'
 import { generateKeyPair, createHash } from 'node:crypto'
-import signer from 'url-signer'
 import { writeFile, mkdir, rm } from 'fs/promises'
 import axios from 'axios'
 
@@ -283,24 +282,14 @@ export class FailsAssets {
   constructor(args) {
     this.datadir = args.datadir ? args.datadir : 'files'
     this.dataurl = args.dataurl
-    this.webservertype = args.webservertype ? args.webservertype : 'local'
+    this.webservertype = args.webservertype
 
     this.savefile = args.savefile
     this.privateKey = args.privateKey
-    if (this.webservertype === 'local' || this.webservertype === 'nginx') {
+    if (this.webservertype === 'nginx') {
       if (!this.privateKey) throw new Error('No private key for assets')
     }
 
-    if (this.webservertype === 'local') {
-      // signed url, better use an nginx and its secure url scheme or signed urls for an S3 bucket.
-      // url-signer only allows global settings, this is not pretty
-      signer.init({
-        privateKey: this.privateKey,
-        algorithm: 'sha512',
-        digest: 'base64',
-        ttl: 60 * 24 // just one day, maximum time for a lecture
-      })
-    }
     if (
       this.webservertype === 'openstackswift' ||
       this.savefile === 'openstackswift'
@@ -402,12 +391,7 @@ export class FailsAssets {
   }
 
   getFileURL(sha, mimetype) {
-    if (this.webservertype === 'local') {
-      return (
-        this.dataurl +
-        signer.getSignedUrl('/' + this.shatofilenameLocal(sha, mimetype))
-      )
-    } else if (this.webservertype === 'nginx') {
+    if (this.webservertype === 'nginx') {
       const url = '/' + this.shatofilenameLocal(sha, mimetype)
       const expires = new Date().getTime() + 1000 * 60 * 60 * 24
       const input = expires + url + ' ' + this.privateKey
@@ -447,14 +431,6 @@ export class FailsAssets {
       )
     } else
       throw new Error('unsupported webservertype assets:' + this.webservertype)
-  }
-
-  localServer() {
-    return this.webservertype === 'local'
-  }
-
-  getLocalVerifier() {
-    return signer.verifier()
   }
 
   shatofilenameLocal(sha, mime) {
