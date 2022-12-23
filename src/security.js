@@ -455,7 +455,7 @@ export class FailsAssets {
         const path =
           '/v1/' + this.swiftaccount + '/' + this.swiftcontainer + '/' + shahex
         response = await axios.delete(this.swiftbaseurl + path, {
-          header: { 'X-Auth-Token': await this.openstackToken() }
+          headers: { 'X-Auth-Token': await this.openstackToken() }
         })
         if (response?.status !== 204) {
           console.log('axios response', response)
