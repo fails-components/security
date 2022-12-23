@@ -332,7 +332,9 @@ export class FailsAssets {
   }
 
   async setupAssets() {
+    console.log('setting up assets')
     if (this.savefile === 'openstackswift') {
+      console.log('configuring open stack headers')
       // first get auth token
       const authtoken = await this.openstackToken()
 
@@ -350,6 +352,7 @@ export class FailsAssets {
             }
           }
         )
+        console.log('axios response', response)
         if (response?.status !== 201) {
           console.log('axios response', response)
           throw new Error('setup assests for openstack failed')
