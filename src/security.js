@@ -24,6 +24,7 @@ import { promisify } from 'util'
 import { generateKeyPair, createHash } from 'crypto'
 import signer from 'url-signer'
 import { writeFile, mkdir, rm } from 'fs/promises'
+import axios from 'axios'
 
 // this function converts a new redis object to an old one usable with redlock
 
@@ -256,7 +257,7 @@ export class FailsJWTVerifier {
   }
 
   express() {
-    const secretCallback = async (req, payload, done) => {
+    const secretCallback = async (req, { header, payload }) => {
       const keyid = payload.kid
       const time = Date.now()
 
@@ -266,9 +267,9 @@ export class FailsJWTVerifier {
       ) {
         await this.fetchKey(keyid)
         if (!this.keys[keyid])
-          return done(new Error('unknown or expired key or db error'))
+          throw new Error('unknown or expired key or db error'))
       }
-      done(null, this.keys[keyid].publicKey)
+      return this.keys[keyid].publicKey
     }
     return jwtexpress({
       secret: secretCallback,
@@ -283,9 +284,12 @@ export class FailsAssets {
     this.datadir = args.datadir ? args.datadir : 'files'
     this.dataurl = args.dataurl
     this.webservertype = args.webservertype ? args.webservertype : 'local'
-    this.privateKey = args.privateKey
+
     this.savefile = args.savefile
-    if (!this.privateKey) throw new Error('No private key for assets')
+    this.privateKey = args.privateKey
+    if (this.webservertype === 'local' || this.webservertype === 'nginx') {
+      if (!this.privateKey) throw new Error('No private key for assets')
+    }
 
     if (this.webservertype === 'local') {
       // signed url, better use an nginx and its secure url scheme or signed urls for an S3 bucket.
@@ -297,11 +301,104 @@ export class FailsAssets {
         ttl: 60 * 24 // just one day, maximum time for a lecture
       })
     }
+    if (
+      this.webservertype === 'openstackswift' ||
+      this.savefile === 'openstackswift'
+    ) {
+      // TODO check if credentials are passed
+
+      this.swiftaccount = args.swift?.account
+      this.swiftcontainer = args.swift?.container
+      this.swiftkey = args.swift?.key
+      this.swiftbaseurl = args.swift?.baseurl
+      axios.defaults.baseURL = args.swift?.baseurl
+      if (
+        !this.swiftaccount ||
+        !this.swiftcontainer ||
+        !this.swiftkey ||
+        !this.swiftbaseurl
+      )
+        throw new Error('Swift credentials incomplete!')
+      if (this.savefile === 'openstackswift') {
+        this.swiftusername = args.swift?.username
+        this.swiftpassword = args.swift?.password
+        this.swiftdomain = args.swift?.domain
+        this.swiftproject = args.swift?.project
+        if (
+          !this.swiftusername ||
+          !this.swiftpassword ||
+          (!this.swiftdomain && !this.swiftproject)
+        )
+          throw new Error('Swift save credentials incomplete!')
+      }
+    }
 
     this.shatofilenameLocal = this.shatofilenameLocal.bind(this)
     this.getFileURL = this.getFileURL.bind(this)
     this.saveFile = this.saveFile.bind(this)
     this.shadeletelocal = this.shadeletelocal.bind(this)
+  }
+
+  // may be should go to security
+  async openstackToken() {
+    let token = await this.ostoken
+    if (!token || token.expire < Date.now() - 60 * 60 * 1000) {
+      let myres, myrej
+      this.ostoken = new Promise((resolve, reject) => {
+        myres = resolve
+        myrej = reject
+      })
+      try {
+        const ret = await axios.post(
+          {
+            auth: {
+              identity: {
+                methods: ['password'],
+                password: {
+                  user: {
+                    name: this.swiftusername,
+                    password: this.swiftpassword,
+                    domain: {
+                      name: this.swiftdomain
+                    }
+                  }
+                }
+              },
+              scope: {}
+            }
+          },
+          {
+            header: {
+              'Content-Type': 'application/json;charset=utf8'
+            }
+          }
+        )
+        if (this.swiftdomain)
+          ret.scope.domain = {
+            name: this.swiftdomain
+          }
+        if (this.swiftproject)
+          ret.scope.project = {
+            name: this.swiftprpject
+          }
+
+        if (
+          ret &&
+          ret?.data?.token?.expires_at &&
+          ret?.headers?.['X-Subject-Token']
+        ) {
+          token = {
+            token: ret.headers['X-Subject-Token'],
+            tokeninfo: ret.token,
+            expire: new Date(ret.data.token.expires_at).getTime()
+          }
+          myres(token)
+        } else myrej(new Error('problem getting token'))
+      } catch (error) {
+        myrej(error)
+      }
+    }
+    return token.token
   }
 
   getFileURL(sha, mimetype) {
@@ -325,7 +422,31 @@ export class FailsAssets {
       if (mydataurl === '/') mydataurl = ''
 
       return mydataurl + url + '?md5=' + mdhash + '&expires=' + expires
-    }
+    } else if (this.webservertype === 'openstackswift') {
+      const expires = Math.floor(Date.now() / 1000) + 60 * 60 * 24
+      const shahex = sha.toString('hex')
+      const path =
+        '/v1/' + this.swiftaccount + '/' + this.swiftcontainer + '/' + shahex
+      const key = this.swiftkey
+      const hmacBody = 'GET\n' + expires + '\n' + path
+      const signature = createHash('sha256')
+        .update(key)
+        .update(hmacBody)
+        .digest('hex')
+
+      return (
+        this.swiftbaseurl +
+        path +
+        '?temp_url_sig=' +
+        signature +
+        '&temp_url_expires=' +
+        expires +
+        '&filename=' +
+        shahex +
+        this.mimeToExtension(mimetype)
+      )
+    } else
+      throw new Error('unsupported webservertype assets:' + this.webservertype)
   }
 
   localServer() {
@@ -343,10 +464,19 @@ export class FailsAssets {
     return dir + '/' + shahex + this.mimeToExtension(mime)
   }
 
-  async shadeletelocal(shahex, ext) {
-    const dir =
-      this.datadir + '/' + shahex.substr(0, 2) + '/' + shahex.substr(2, 4)
-    await rm(dir + '/' + shahex + '.' + ext)
+  async shadelete(shahex, ext) {
+    if (this.savefile === 'fs') {
+      const dir =
+        this.datadir + '/' + shahex.substr(0, 2) + '/' + shahex.substr(2, 4)
+      await rm(dir + '/' + shahex + '.' + ext)
+    } else if (this.savefile === 'openstackswift') {
+      const path =
+        '/v1/' + this.swiftaccount + '/' + this.swiftcontainer + '/' + shahex
+      const response = await axios.delete(path, {
+        header: { 'X-Auth-Token': await this.openstackToken() }
+      })
+      if (response.length !== 0) throw new Error('delete failed for' + shahex)
+    } else throw new Error('unimplemented delete assets:' + this.webservertype)
   }
 
   async shamkdirLocal(sha) {
@@ -356,12 +486,24 @@ export class FailsAssets {
     await mkdir(dir, { recursive: true })
   }
 
-  async saveFile(blob, sha, mime) {
+  async saveFile(input, sha, mime) {
     if (this.savefile === 'fs') {
       await this.shamkdirLocal(sha)
       const filename = this.shatofilenameLocal(sha, mime)
 
-      await writeFile(filename, blob)
+      await writeFile(filename, input)
+    } else if (this.savefile === 'openstackswift') {
+      const shahex = sha.toString('hex')
+      const path =
+        '/v1/' + this.swiftaccount + '/' + this.swiftcontainer + '/' + shahex
+      const config = {
+        header: {
+          'X-Auth-Token': await this.openstackToken(),
+          'Content-Type': mime
+        }
+      }
+      const response = await axios.put(path, input, config)
+      if (response.length !== 0) throw new Error('save failed for' + shahex)
     } else throw new Error('unsupported savefile method ' + this.savefile)
   }
 
