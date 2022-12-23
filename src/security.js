@@ -306,8 +306,9 @@ export class FailsAssets {
         !this.swiftcontainer ||
         !this.swiftkey ||
         !this.swiftbaseurl
-      )
+      ) {
         throw new Error('Swift credentials incomplete!')
+      }
       if (this.savefile === 'openstackswift') {
         this.swiftusername = args.swift?.username
         this.swiftpassword = args.swift?.password
@@ -458,7 +459,7 @@ export class FailsAssets {
         console.log('axios response', response)
         throw new Error('delete failed for' + shahex)
       }
-    } else throw new Error('unimplemented delete assets:' + this.webservertype)
+    } else throw new Error('unimplemented delete assets:' + this.savefile)
   }
 
   async shamkdirLocal(sha) {
