@@ -353,8 +353,7 @@ export class FailsAssets {
             }
           }
         )
-        console.log('axios response', response)
-        if (response?.status !== 201) {
+        if (response?.status !== 204) {
           console.log('axios response', response)
           throw new Error('setup assests for openstack failed')
         }
