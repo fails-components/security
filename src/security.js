@@ -331,6 +331,36 @@ export class FailsAssets {
     this.shadelete = this.shadelete.bind(this)
   }
 
+  async setupAssets() {
+    if (this.savefile === 'openstackswift') {
+      // first get auth token
+      const authtoken = await this.openstackToken()
+
+      let response
+      try {
+        const path = '/v1/' + this.swiftaccount + '/' + this.swiftcontainer
+        response = await axios.post(
+          this.swiftbaseurl + path,
+          {},
+          {
+            headers: {
+              'X-Auth-Token': authtoken,
+              'X-Container-Meta-Temp-URL-Key': this.swiftkey,
+              'X-Container-Meta-Access-Control-Allow-Origin': '*'
+            }
+          }
+        )
+        if (response?.status !== 201) {
+          console.log('axios response', response)
+          throw new Error('setup assests for openstack failed')
+        }
+      } catch (error) {
+        console.log('axios response', response)
+        console.log('problem axios save', error)
+      }
+    }
+  }
+
   // may be should go to security
   async openstackToken() {
     let token = await this.ostoken
