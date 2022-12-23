@@ -336,7 +336,7 @@ export class FailsAssets {
     this.shatofilenameLocal = this.shatofilenameLocal.bind(this)
     this.getFileURL = this.getFileURL.bind(this)
     this.saveFile = this.saveFile.bind(this)
-    this.shadeletelocal = this.shadeletelocal.bind(this)
+    this.shadelete = this.shadelete.bind(this)
   }
 
   // may be should go to security
