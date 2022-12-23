@@ -21,7 +21,7 @@ import jwt from 'jsonwebtoken'
 import Redlock from 'redlock'
 import { expressjwt as jwtexpress } from 'express-jwt'
 import { promisify } from 'util'
-import { generateKeyPair, createHash } from 'node:crypto'
+import { generateKeyPair, createHash, createHmac } from 'node:crypto'
 import { writeFile, mkdir, rm } from 'fs/promises'
 import axios from 'axios'
 
@@ -300,7 +300,7 @@ export class FailsAssets {
       this.swiftcontainer = args.swift?.container
       this.swiftkey = args.swift?.key
       this.swiftbaseurl = args.swift?.baseurl
-      axios.defaults.baseURL = args.swift?.baseurl
+      this.swiftauthbaseurl = args.swift?.authbaseurl
       if (
         !this.swiftaccount ||
         !this.swiftcontainer ||
@@ -316,7 +316,9 @@ export class FailsAssets {
         if (
           !this.swiftusername ||
           !this.swiftpassword ||
-          (!this.swiftdomain && !this.swiftproject)
+          !this.swiftdomain ||
+          !this.swiftproject ||
+          !this.swiftauthbaseurl
         )
           throw new Error('Swift save credentials incomplete!')
       }
@@ -339,6 +341,7 @@ export class FailsAssets {
       })
       try {
         const ret = await axios.post(
+          this.swiftauthbaseurl + '/v3/auth/tokens',
           {
             auth: {
               identity: {
@@ -348,12 +351,18 @@ export class FailsAssets {
                     name: this.swiftusername,
                     password: this.swiftpassword,
                     domain: {
-                      name: this.swiftdomain
+                      id: this.swiftdomain
+                    },
+                    scope: {
+                      project: {
+                        name: this.swiftproject,
+                        domain: { id: this.swiftdomain }
+                      }
                     }
                   }
-                }
-              },
-              scope: {}
+                },
+                scope: {}
+              }
             }
           },
           {
@@ -362,27 +371,22 @@ export class FailsAssets {
             }
           }
         )
-        if (this.swiftdomain)
-          ret.scope.domain = {
-            name: this.swiftdomain
-          }
-        if (this.swiftproject)
-          ret.scope.project = {
-            name: this.swiftprpject
-          }
-
         if (
           ret &&
+          ret?.status === 201 &&
           ret?.data?.token?.expires_at &&
-          ret?.headers?.['X-Subject-Token']
+          ret?.headers?.['x-subject-token']
         ) {
           token = {
-            token: ret.headers['X-Subject-Token'],
-            tokeninfo: ret.token,
+            token: ret.headers['x-subject-token'],
+            tokeninfo: ret.data.token,
             expire: new Date(ret.data.token.expires_at).getTime()
           }
           myres(token)
-        } else myrej(new Error('problem getting token'))
+        } else {
+          console.log('axios response', ret)
+          myrej(new Error('problem getting token'))
+        }
       } catch (error) {
         myrej(error)
       }
@@ -413,9 +417,8 @@ export class FailsAssets {
         '/v1/' + this.swiftaccount + '/' + this.swiftcontainer + '/' + shahex
       const key = this.swiftkey
       const hmacBody = 'GET\n' + expires + '\n' + path
-      const signature = createHash('sha256')
-        .update(key)
-        .update(hmacBody)
+      const signature = createHmac('sha256', key)
+        .update(hmacBody, 'utf8')
         .digest('hex')
 
       return (
@@ -426,7 +429,7 @@ export class FailsAssets {
         '&temp_url_expires=' +
         expires +
         '&filename=' +
-        shahex +
+        shahex.substr(0, 16) +
         this.mimeToExtension(mimetype)
       )
     } else
@@ -448,10 +451,13 @@ export class FailsAssets {
     } else if (this.savefile === 'openstackswift') {
       const path =
         '/v1/' + this.swiftaccount + '/' + this.swiftcontainer + '/' + shahex
-      const response = await axios.delete(path, {
+      const response = await axios.delete(this.swiftbaseurl + path, {
         header: { 'X-Auth-Token': await this.openstackToken() }
       })
-      if (response.length !== 0) throw new Error('delete failed for' + shahex)
+      if (response.length !== 0) {
+        console.log('axios response', response)
+        throw new Error('delete failed for' + shahex)
+      }
     } else throw new Error('unimplemented delete assets:' + this.webservertype)
   }
 
@@ -473,13 +479,16 @@ export class FailsAssets {
       const path =
         '/v1/' + this.swiftaccount + '/' + this.swiftcontainer + '/' + shahex
       const config = {
-        header: {
+        headers: {
           'X-Auth-Token': await this.openstackToken(),
           'Content-Type': mime
         }
       }
-      const response = await axios.put(path, input, config)
-      if (response.length !== 0) throw new Error('save failed for' + shahex)
+      const response = await axios.put(this.swiftbaseurl + path, input, config)
+      if (response?.status !== 201) {
+        console.log('axios response', response)
+        throw new Error('save failed for' + shahex)
+      }
     } else throw new Error('unsupported savefile method ' + this.savefile)
   }
 
