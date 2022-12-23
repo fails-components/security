@@ -329,6 +329,7 @@ export class FailsAssets {
     this.getFileURL = this.getFileURL.bind(this)
     this.saveFile = this.saveFile.bind(this)
     this.shadelete = this.shadelete.bind(this)
+    this.setupAssets = this.setupAssets.bind(this)
   }
 
   async setupAssets() {
