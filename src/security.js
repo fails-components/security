@@ -19,9 +19,9 @@
 
 import jwt from 'jsonwebtoken'
 import Redlock from 'redlock'
-import jwtexpress from 'express-jwt'
+import { expressjwt as jwtexpress } from 'express-jwt'
 import { promisify } from 'util'
-import { generateKeyPair, createHash } from 'crypto'
+import { generateKeyPair, createHash } from 'node:crypto'
 import signer from 'url-signer'
 import { writeFile, mkdir, rm } from 'fs/promises'
 import axios from 'axios'
