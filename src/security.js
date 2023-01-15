@@ -22,7 +22,7 @@ import Redlock from 'redlock'
 import { expressjwt as jwtexpress } from 'express-jwt'
 import { promisify } from 'util'
 import { generateKeyPair, createHash, createHmac } from 'node:crypto'
-import { writeFile, mkdir, rm } from 'fs/promises'
+import { writeFile, mkdir, rm, stat, readdir, open } from 'fs/promises'
 import axios from 'axios'
 
 // this function converts a new redis object to an old one usable with redlock
@@ -364,6 +364,70 @@ export class FailsAssets {
     }
   }
 
+  async getAssetList() {
+    if (this.savefile === 'openstackswift') {
+      let marker
+      const fslist = []
+      while (true) {
+        let response
+        try {
+          const path =
+            '/v1/' +
+            this.swiftaccount +
+            '/' +
+            this.swiftcontainer +
+            (marker ? '?marker=' + marker : '')
+          response = await axios.get(this.swiftbaseurl + path, {
+            headers: { 'X-Auth-Token': await this.openstackToken() }
+          })
+          if (response?.status !== 200) {
+            console.log('axios response', response)
+            if (response?.status === 404) break
+            throw new Error('get list failed')
+          }
+          if (response.data?.length) {
+            fslist.push(
+              ...response.data.map((el) => ({
+                id: el.name,
+                size: el.bytes,
+                mime: el.content_type
+              }))
+            )
+            marker = response.data[response.data.length - 1].name
+          } else break // no further data
+        } catch (error) {
+          console.log('axios response', response)
+          console.log('problem axios get', error)
+          throw error
+        }
+      }
+      return fslist
+    } else if (this.savefile === 'fs') {
+      console.log('datadir', this.datadir)
+      const startsearch = this.datadir + '/'
+      const fslist = []
+      const searchdir = async (path) => {
+        const dirfiles = await readdir(path)
+        for await (const file of dirfiles) {
+          const curstat = await stat(path + file)
+          if (curstat.isFile()) {
+            const finfo = file.split('.')
+            fslist.push({
+              id: finfo[0],
+              size: curstat.size,
+              mime:
+                finfo.length > 1 ? this.extensionToMime(finfo[1]) : undefined
+            })
+          } else if (curstat.isDirectory()) {
+            await searchdir(path + file + '/')
+          }
+        }
+      }
+      await searchdir(startsearch)
+      return fslist
+    } else throw new Error('undefined or unknown save type')
+  }
+
   // may be should go to security
   async openstackToken() {
     let token = await this.ostoken
@@ -510,6 +574,38 @@ export class FailsAssets {
     await mkdir(dir, { recursive: true })
   }
 
+  async readFileStream(sha, mime) {
+    if (this.savefile === 'fs') {
+      const filename = this.shatofilenameLocal(sha, mime)
+      const fd = await open(filename)
+      const stream = fd.createReadStream()
+      return stream
+    } else if (this.savefile === 'openstackswift') {
+      let response
+      try {
+        const shahex = sha.toString('hex')
+        const path =
+          '/v1/' + this.swiftaccount + '/' + this.swiftcontainer + '/' + shahex
+        const config = {
+          headers: {
+            'X-Auth-Token': await this.openstackToken(),
+            'Content-Type': mime
+          },
+          responseType: 'stream'
+        }
+        response = await axios.get(this.swiftbaseurl + path, config)
+        if (response?.status !== 200) {
+          console.log('axios response', response)
+          throw new Error('read failed for' + shahex)
+        }
+      } catch (error) {
+        console.log('axios response', response)
+        console.log('problem axios save', error)
+      }
+      return response?.data
+    }
+  }
+
   async saveFile(input, sha, mime) {
     if (this.savefile === 'fs') {
       await this.shamkdirLocal(sha)
@@ -548,6 +644,32 @@ export class FailsAssets {
         return '.jpg'
       case 'image/png':
         return '.png'
+      default:
+        return ''
+    }
+  }
+
+  mimeToExtensionwoDot(mime) {
+    switch (mime) {
+      case 'application/pdf':
+        return 'pdf'
+      case 'image/jpeg':
+        return 'jpg'
+      case 'image/png':
+        return 'png'
+      default:
+        return ''
+    }
+  }
+
+  extensionToMime(ext) {
+    switch (ext) {
+      case 'pdf':
+        return 'application/pdf'
+      case 'jpg':
+        return 'image/jpeg'
+      case 'png':
+        return 'image/png'
       default:
         return ''
     }
