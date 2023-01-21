@@ -889,9 +889,8 @@ export class FailsAssets {
         Hosts: host,
         'Content-Length': String(input.length),
         'Content-Type': mime,
-        Date: date.toUTCString()
-        /*,
-        'x-amz-content-sha256': shahex */
+        Date: date.toUTCString(),
+        'x-amz-content-sha256': shahex
       }
       let response
       try {
