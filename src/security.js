@@ -904,7 +904,7 @@ export class FailsAssets {
         response = await axios.put(path, input, {
           headers
         })
-        if (response?.status !== 201) {
+        if (response?.status !== 200) {
           console.log('axios response', response)
           throw new Error('save failed for' + shahex)
         }
