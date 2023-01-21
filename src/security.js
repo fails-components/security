@@ -883,9 +883,10 @@ export class FailsAssets {
         headers.Authorization = this.s3AuthHeader({
           headers,
           uri,
-          verb: 'PUT'
+          verb: 'PUT',
+          payload: input
         })
-        response = await axios.put(path, {
+        response = await axios.put(path, input, {
           headers
         })
         if (response?.status !== 201) {
