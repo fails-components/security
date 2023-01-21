@@ -500,7 +500,7 @@ export class FailsAssets {
     uri,
     query = '',
     scope,
-    payload
+    payload = ''
   }) {
     const cheaders = Object.entries(headers)
       .map(([key, value]) => key.toLowerCase() + ':' + value.trim() + '\n')
