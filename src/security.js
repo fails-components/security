@@ -324,6 +324,22 @@ export class FailsAssets {
           throw new Error('Swift save credentials incomplete!')
       }
     }
+    if (this.webservertype === 's3' || this.savefile === 's3') {
+      this.s3AK = args.s3?.AK
+      this.s3SK = args.s3?.SK
+      this.s3region = args.s3?.region
+      this.s3bucket = args.s3?.bucket
+      this.s3host = args.s3?.host
+      this.s3alturl = args.s3?.alturl
+      if (
+        !this.s3AK ||
+        !this.s3SK ||
+        !this.s3region ||
+        !this.s3bucket ||
+        !this.s3host
+      )
+        throw new Error('S3 parameters missing')
+    }
 
     this.shatofilenameLocal = this.shatofilenameLocal.bind(this)
     this.getFileURL = this.getFileURL.bind(this)
@@ -365,7 +381,52 @@ export class FailsAssets {
   }
 
   async getAssetList() {
-    if (this.savefile === 'openstackswift') {
+    if (this.savefile === 's3') {
+      let marker
+      const fslist = []
+      while (true) {
+        const host = this.s3bucket + '.' + this.s3host
+        const uri = '/'
+        let path = 'https://' + host + uri
+        const headers = { host }
+        let response
+        let query
+        if (marker) {
+          query = 'marker=' + marker
+          path += '?' + query
+        }
+        try {
+          headers.Authorization = this.s3AuthHeader({
+            headers,
+            uri,
+            verb: 'GET',
+            query
+          })
+          response = await axios.get(path, {
+            headers
+          })
+          if (response?.status !== 200) {
+            console.log('axios response', response)
+            if (response?.status === 404) break
+            throw new Error('get list failed')
+          }
+          if (response.data?.length) {
+            fslist.push(
+              ...response.data.map((el) => ({
+                id: el.name,
+                size: el.bytes,
+                mime: el.content_type
+              }))
+            )
+            marker = response.data[response.data.length - 1].name
+          } else break // no further data
+        } catch (error) {
+          console.log('axios response', response)
+          console.log('problem axios get', error)
+        }
+      }
+      return fslist
+    } else if (this.savefile === 'openstackswift') {
       let marker
       const fslist = []
       while (true) {
@@ -426,6 +487,113 @@ export class FailsAssets {
       await searchdir(startsearch)
       return fslist
     } else throw new Error('undefined or unknown save type')
+  }
+
+  // not we skip URIencode and restrict names thus to number and normal letter,
+  // which is sufficient for our application
+  s3CalculateSignature({
+    iso8601date,
+    sdate,
+    verb,
+    headers,
+    signedheaders,
+    uri,
+    query = '',
+    scope,
+    payload
+  }) {
+    const cheaders = Object.entries(headers)
+      .map(([key, value]) => key.toLowerCase() + ':' + value.trim() + '\n')
+      .join('')
+    const hashedpayload = createHash('sha256').update(payload).digest('hex')
+
+    const canonicalRequest =
+      verb +
+      '\n' +
+      uri +
+      '\n' +
+      query +
+      '\n' +
+      cheaders +
+      '\n' +
+      signedheaders +
+      '\n' +
+      hashedpayload
+    const stringToSign =
+      'AWS4-HMAC-SHA256' +
+      '\n' +
+      iso8601date +
+      '\n' +
+      scope +
+      '\n' +
+      createHash('sha256').update(canonicalRequest).digest('hex')
+
+    const DateKey = createHmac('sha256', 'AWS4' + this.s3SK)
+      .update(sdate, 'utf8')
+      .digest('hex')
+
+    const DateRegionKey = createHmac('sha256', DateKey)
+      .update(this.s3region, 'utf8')
+      .digest('hex')
+    const DateRegionServiceKey = createHmac('sha256', DateRegionKey)
+      .update('s3', 'utf8')
+      .digest('hex')
+    const SigningKey = createHmac('sha256', DateRegionServiceKey)
+      .update('aws4_request', 'utf8')
+      .digest('hex')
+
+    return createHmac('sha256', SigningKey)
+      .update(stringToSign, 'utf8')
+      .digest('hex')
+  }
+
+  s3Dates() {
+    const date = new Date()
+    const twodigits = (inp) => '0' + inp.slice(-2)
+    const sdate =
+      date.getUTCFullYear() +
+      twodigits(date.getUTCMonth() + 1) +
+      twodigits(date.getUTCDate())
+    const iso8601date =
+      sdate +
+      'T' +
+      twodigits(date.getUTCHours()) +
+      twodigits(date.getUTCMinutes()) +
+      twodigits(date.getUTCSeconds()) +
+      'Z'
+
+    return { sdate, iso8601date }
+  }
+
+  s3AuthHeader(args) {
+    const [headers] = args
+    const signedheaders = Object.keys(headers)
+      .map((el) => el.toLowerCase())
+      .join(';')
+
+    const { sdate, iso8601date } = this.s3Dates()
+
+    const scope = sdate + '/' + this.s3region + '/s3'
+    return (
+      'AWS4-HMAC-SHA256' +
+      ' Credential' +
+      this.s3AK +
+      '/' +
+      scope +
+      '/aws4request,' +
+      'SignedHeaders=' +
+      signedheaders +
+      ',' +
+      'Signature=' +
+      this.s3CalculateSignature({
+        sdate,
+        iso8601date,
+        headers,
+        signedheaders,
+        scope,
+        ...args
+      })
+    )
   }
 
   // may be should go to security
@@ -493,7 +661,45 @@ export class FailsAssets {
   }
 
   getFileURL(sha, mimetype) {
-    if (this.webservertype === 'nginx') {
+    if (this.webservertype === 's3') {
+      const host = this.s3bucket + '.' + this.s3host
+      const shahex = sha.toString('hex')
+      const uri = '/' + shahex
+      const path = 'https://' + (this.s3alturl || host) + uri
+      const headers = { host }
+
+      const expiresInSeconds = 60 * 60 * 24
+      const signedheaders = Object.keys(headers)
+        .map((el) => el.toLowerCase())
+        .join(';')
+      const { sdate, iso8601date } = this.s3Dates()
+      const scope = sdate + '/' + this.s3region + '/s3'
+      const query =
+        'X-Amz-Algorithm=AWS4-HMAC-SHA256' +
+        '&X-Amz-Credential=' +
+        this.s3AK +
+        '%2F' +
+        scope +
+        '%2Faws4_request' +
+        '&X-Amz-Date=' +
+        iso8601date +
+        '&X-Amz-Expires=' +
+        expiresInSeconds +
+        '&X-Amz-SignedHeaders=' +
+        signedheaders
+
+      const signature = this.s3CalculateSignature({
+        payload: 'UNSIGNED-PAYLOAD',
+        sdate,
+        iso8601date,
+        headers,
+        signedheaders,
+        scope,
+        query,
+        uri
+      })
+      return path + host + '?' + query + '&X-Amz-Signature=' + signature
+    } else if (this.webservertype === 'nginx') {
       const url = '/' + this.shatofilenameLocal(sha, mimetype)
       const expires = new Date().getTime() + 1000 * 60 * 60 * 24
       const input = expires + url + ' ' + this.privateKey
@@ -546,6 +752,29 @@ export class FailsAssets {
       const dir =
         this.datadir + '/' + shahex.substr(0, 2) + '/' + shahex.substr(2, 4)
       await rm(dir + '/' + shahex + '.' + ext)
+    } else if (this.savefile === 's3') {
+      const host = this.s3bucket + '.' + this.s3host
+      const uri = '/' + shahex
+      const path = 'https://' + host + uri
+      const headers = { host }
+      let response
+      try {
+        headers.Authorization = this.s3AuthHeader({
+          headers,
+          uri,
+          verb: 'DELETE'
+        })
+        response = await axios.delete(path, {
+          headers
+        })
+        if (response?.status !== 204) {
+          console.log('axios response', response)
+          throw new Error('delete failed for' + shahex)
+        }
+      } catch (error) {
+        console.log('axios response', response)
+        console.log('problem axios delete', error)
+      }
     } else if (this.savefile === 'openstackswift') {
       let response
       try {
@@ -580,6 +809,31 @@ export class FailsAssets {
       const fd = await open(filename)
       const stream = fd.createReadStream()
       return stream
+    } else if (this.savefile === 's3') {
+      const host = this.s3bucket + '.' + this.s3host
+      const shahex = sha.toString('hex')
+      const uri = '/' + shahex
+      const path = 'https://' + host + uri
+      const headers = { host, 'Content-Type': mime }
+      let response
+      try {
+        headers.Authorization = this.s3AuthHeader({
+          headers,
+          uri,
+          verb: 'GET'
+        })
+        response = await axios.get(path, {
+          headers,
+          responseType: 'stream'
+        })
+        if (response?.status !== 200) {
+          console.log('axios response', response)
+          throw new Error('read failed for' + shahex)
+        }
+      } catch (error) {
+        console.log('axios response', response)
+        console.log('problem axios get', error)
+      }
     } else if (this.savefile === 'openstackswift') {
       let response
       try {
@@ -600,7 +854,7 @@ export class FailsAssets {
         }
       } catch (error) {
         console.log('axios response', response)
-        console.log('problem axios save', error)
+        console.log('problem axios get', error)
       }
       return response?.data
     }
@@ -612,6 +866,30 @@ export class FailsAssets {
       const filename = this.shatofilenameLocal(sha, mime)
 
       await writeFile(filename, input)
+    } else if (this.savefile === 's3') {
+      const host = this.s3bucket + '.' + this.s3host
+      const shahex = sha.toString('hex')
+      const uri = '/' + shahex
+      const path = 'https://' + host + uri
+      const headers = { host, 'Content-Type': mime }
+      let response
+      try {
+        headers.Authorization = this.s3AuthHeader({
+          headers,
+          uri,
+          verb: 'PUT'
+        })
+        response = await axios.put(path, {
+          headers
+        })
+        if (response?.status !== 201) {
+          console.log('axios response', response)
+          throw new Error('save failed for' + shahex)
+        }
+      } catch (error) {
+        console.log('axios response', response)
+        console.log('problem axios delete', error)
+      }
     } else if (this.savefile === 'openstackswift') {
       let response
       try {
