@@ -549,7 +549,7 @@ export class FailsAssets {
 
   s3Dates() {
     const date = new Date()
-    const twodigits = (inp) => '0' + inp.slice(-2)
+    const twodigits = (inp) => ('0' + inp).slice(-2)
     const sdate =
       date.getUTCFullYear() +
       twodigits(date.getUTCMonth() + 1) +
@@ -566,7 +566,7 @@ export class FailsAssets {
   }
 
   s3AuthHeader(args) {
-    const [headers] = args
+    const { headers } = args
     const signedheaders = Object.keys(headers)
       .map((el) => el.toLowerCase())
       .join(';')
@@ -888,7 +888,7 @@ export class FailsAssets {
         }
       } catch (error) {
         console.log('axios response', response)
-        console.log('problem axios delete', error)
+        console.log('problem axios save', error)
       }
     } else if (this.savefile === 'openstackswift') {
       let response
