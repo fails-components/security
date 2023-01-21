@@ -578,7 +578,7 @@ export class FailsAssets {
     const scope = sdate + '/' + this.s3region + '/s3'
     return (
       'AWS4-HMAC-SHA256' +
-      ' Credential' +
+      ' Credential=' +
       this.s3AK +
       '/' +
       scope +
