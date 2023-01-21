@@ -378,6 +378,8 @@ export class FailsAssets {
         console.log('problem axios setup', error)
         throw new Error('setup assests for openstack failed')
       }
+    } else if (this.savefile === 's3' || this.webservertype === 's3') {
+      this.emptyhash = createHash('sha256').update('').digest('hex')
     }
   }
 
@@ -397,11 +399,13 @@ export class FailsAssets {
           path += '?' + query
         }
         try {
+          const hashedpayload = this.emptyhash
           headers.Authorization = this.s3AuthHeader({
             headers,
             uri,
             verb: 'GET',
-            query
+            query,
+            hashedpayload
           })
           response = await axios.get(path, {
             headers
@@ -491,7 +495,7 @@ export class FailsAssets {
     } else throw new Error('undefined or unknown save type')
   }
 
-  // not we skip URIencode and restrict names thus to number and normal letter,
+  // now we skip URIencode and restrict names thus to number and normal letter,
   // which is sufficient for our application
   s3CalculateSignature({
     iso8601date,
@@ -502,16 +506,11 @@ export class FailsAssets {
     uri,
     query = '',
     scope,
-    payload = '',
-    payloadsha
+    hashedpayload
   }) {
     const cheaders = Object.entries(headers)
       .map(([key, value]) => key.toLowerCase() + ':' + value.trim() + '\n')
       .join('')
-    let hashedpayload
-    if (payloadsha) hashedpayload = payloadsha.toString('hex')
-    else if (payload === 'UNSIGNED-PAYLOAD') hashedpayload = payload
-    else hashedpayload = createHash('sha256').update(payload).digest('hex')
 
     const canonicalRequest =
       verb +
@@ -698,7 +697,7 @@ export class FailsAssets {
         signedheaders
 
       const signature = this.s3CalculateSignature({
-        payload: 'UNSIGNED-PAYLOAD',
+        hashedpayload: 'UNSIGNED-PAYLOAD',
         sdate,
         iso8601date,
         headers,
@@ -767,14 +766,19 @@ export class FailsAssets {
       const uri = '/' + shahex
       const path = 'https://' + host + uri
       const date = new Date()
-      const headers = { Date: date.toUTCString(), Host: host }
+      const headers = {
+        Date: date.toUTCString(),
+        Host: host,
+        'x-amz-content-sha256': this.emptyhash
+      }
       let response
       try {
         headers.Authorization = this.s3AuthHeader({
           headers,
           uri,
           verb: 'DELETE',
-          date
+          date,
+          hashedpayload: this.emptyhash
         })
         response = await axios.delete(path, {
           headers
@@ -828,13 +832,18 @@ export class FailsAssets {
       const shahex = sha.toString('hex')
       const uri = '/' + shahex
       const path = 'https://' + host + uri
-      const headers = { 'Content-Type': mime, Host: host }
+      const headers = {
+        'Content-Type': mime,
+        Host: host,
+        'x-amz-content-sha256': this.emptyhash
+      }
       let response
       try {
         headers.Authorization = this.s3AuthHeader({
           headers,
           uri,
-          verb: 'GET'
+          verb: 'GET',
+          hashedpayload: this.emptyhash
         })
         response = await axios.get(path, {
           headers,
@@ -902,7 +911,7 @@ export class FailsAssets {
           uri,
           verb: 'PUT',
           date,
-          payloadsha: sha
+          hashedpayload: shahex
         })
         response = await axios.put(path, input, {
           headers
