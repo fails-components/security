@@ -681,7 +681,7 @@ export class FailsAssets {
         .map((el) => el.toLowerCase())
         .join(';')
       const { sdate, iso8601date } = this.s3Dates()
-      const scope = sdate + '/' + this.s3region + '/s3/aws4_request'
+      const scope = sdate + '%2F' + this.s3region + '%2Fs3%2Faws4_request'
       const query =
         'X-Amz-Algorithm=AWS4-HMAC-SHA256' +
         '&X-Amz-Credential=' +
@@ -704,7 +704,8 @@ export class FailsAssets {
         signedheaders,
         scope,
         query,
-        uri
+        uri,
+        verb: 'GET'
       })
       return path + host + '?' + query + '&X-Amz-Signature=' + signature
     } else if (this.webservertype === 'nginx') {
