@@ -682,13 +682,14 @@ export class FailsAssets {
         .map((el) => el.toLowerCase())
         .join(';')
       const { sdate, iso8601date } = this.s3Dates()
-      const scope = sdate + '%2F' + this.s3region + '%2Fs3%2Faws4_request'
+      const scope = sdate + '/' + this.s3region + '/s3/aws4_request'
+      const scopeurl = sdate + '%2F' + this.s3region + '%2Fs3%2Faws4_request'
       const query =
         'X-Amz-Algorithm=AWS4-HMAC-SHA256' +
         '&X-Amz-Credential=' +
         this.s3AK +
         '%2F' +
-        scope +
+        scopeurl +
         '&X-Amz-Date=' +
         iso8601date +
         '&X-Amz-Expires=' +
