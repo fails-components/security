@@ -505,7 +505,6 @@ export class FailsAssets {
     payload = '',
     payloadsha
   }) {
-    console.log('headers debug', headers)
     const cheaders = Object.entries(headers)
       .map(([key, value]) => key.toLowerCase() + ':' + value.trim() + '\n')
       .join('')
@@ -888,7 +887,7 @@ export class FailsAssets {
       const date = new Date()
       const headers = {
         Hosts: host,
-        'Content-Length': input.length,
+        'Content-Length': String(input.length),
         'Content-Type': mime,
         Date: date.toUTCString()
         /*,
