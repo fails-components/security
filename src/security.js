@@ -765,7 +765,7 @@ export class FailsAssets {
       const host = this.s3bucket + '.' + this.s3host
       const uri = '/' + shahex
       const path = 'https://' + host + uri
-      const headers = { host }
+      const headers = { Host: host }
       let response
       try {
         headers.Authorization = this.s3AuthHeader({
@@ -825,7 +825,7 @@ export class FailsAssets {
       const shahex = sha.toString('hex')
       const uri = '/' + shahex
       const path = 'https://' + host + uri
-      const headers = { host, 'Content-Type': mime }
+      const headers = { Host: host, 'Content-Type': mime }
       let response
       try {
         headers.Authorization = this.s3AuthHeader({
@@ -886,7 +886,7 @@ export class FailsAssets {
       const path = 'https://' + host + uri
       const date = new Date()
       const headers = {
-        Hosts: host,
+        Host: host,
         'Content-Length': String(input.length),
         'Content-Type': mime,
         Date: date.toUTCString(),
