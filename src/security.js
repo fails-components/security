@@ -688,7 +688,6 @@ export class FailsAssets {
         this.s3AK +
         '%2F' +
         scope +
-        '%2Faws4_request' +
         '&X-Amz-Date=' +
         iso8601date +
         '&X-Amz-Expires=' +
