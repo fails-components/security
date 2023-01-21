@@ -502,7 +502,7 @@ export class FailsAssets {
     uri,
     query = '',
     scope,
-    payload = '',
+    payload = 'UNSIGNED-PAYLOAD',
     payloadsha
   }) {
     const cheaders = Object.entries(headers)
