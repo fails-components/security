@@ -884,9 +884,12 @@ export class FailsAssets {
       const shahex = sha.toString('hex')
       const uri = '/' + shahex
       const path = 'https://' + host + uri
+      const date = new Date()
       const headers = {
-        host,
-        'Content-Type': mime
+        Hosts: host,
+        'Content-Length': input.length,
+        'Content-Type': mime,
+        Date: date.toUTCString()
         /*,
         'x-amz-content-sha256': shahex */
       }
@@ -896,6 +899,7 @@ export class FailsAssets {
           headers,
           uri,
           verb: 'PUT',
+          date,
           payloadsha: sha
         })
         response = await axios.put(path, input, {
