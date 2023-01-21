@@ -825,7 +825,7 @@ export class FailsAssets {
       const shahex = sha.toString('hex')
       const uri = '/' + shahex
       const path = 'https://' + host + uri
-      const headers = { Host: host, 'Content-Type': mime }
+      const headers = { 'Content-Type': mime, Host: host }
       let response
       try {
         headers.Authorization = this.s3AuthHeader({
@@ -886,10 +886,10 @@ export class FailsAssets {
       const path = 'https://' + host + uri
       const date = new Date()
       const headers = {
-        Host: host,
         'Content-Length': String(input.length),
         'Content-Type': mime,
         Date: date.toUTCString(),
+        Host: host,
         'x-amz-content-sha256': shahex
       }
       let response
