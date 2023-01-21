@@ -24,6 +24,7 @@ import { promisify } from 'util'
 import { generateKeyPair, createHash, createHmac } from 'node:crypto'
 import { writeFile, mkdir, rm, stat, readdir, open } from 'fs/promises'
 import axios from 'axios'
+import { XMLParser } from 'fast-xml-parser'
 
 // this function converts a new redis object to an old one usable with redlock
 
@@ -346,6 +347,9 @@ export class FailsAssets {
     this.saveFile = this.saveFile.bind(this)
     this.shadelete = this.shadelete.bind(this)
     this.setupAssets = this.setupAssets.bind(this)
+
+    this.emptyhash = createHash('sha256').update('').digest('hex')
+    this.xmlparser = new XMLParser()
   }
 
   async setupAssets() {
@@ -378,8 +382,6 @@ export class FailsAssets {
         console.log('problem axios setup', error)
         throw new Error('setup assests for openstack failed')
       }
-    } else if (this.savefile === 's3' || this.webservertype === 's3') {
-      this.emptyhash = createHash('sha256').update('').digest('hex')
     }
   }
 
@@ -391,7 +393,12 @@ export class FailsAssets {
         const host = this.s3bucket + '.' + this.s3host
         const uri = '/'
         let path = 'https://' + host + uri
-        const headers = { host }
+        const date = new Date()
+        const headers = {
+          Date: date.toUTCString(),
+          Host: host,
+          'x-amz-content-sha256': this.emptyhash
+        }
         let response
         let query
         if (marker) {
@@ -399,13 +406,13 @@ export class FailsAssets {
           path += '?' + query
         }
         try {
-          const hashedpayload = this.emptyhash
           headers.Authorization = this.s3AuthHeader({
             headers,
             uri,
             verb: 'GET',
             query,
-            hashedpayload
+            hashedpayload: this.emptyhash,
+            date
           })
           response = await axios.get(path, {
             headers
@@ -415,15 +422,18 @@ export class FailsAssets {
             if (response?.status === 404) break
             throw new Error('get list failed')
           }
-          if (response.data?.length) {
-            fslist.push(
-              ...response.data.map((el) => ({
-                id: el.name,
-                size: el.bytes,
-                mime: el.content_type
-              }))
-            )
-            marker = response.data[response.data.length - 1].name
+          if (response.data) {
+            const contents = this.xmlparser.parse(response.data)
+              ?.ListBucketResult?.Contents
+            if (contents) {
+              fslist.push(
+                ...contents.map((el) => ({
+                  id: el.Key,
+                  size: el.Size
+                }))
+              )
+              marker = contents[contents.length - 1].Key
+            } else break
           } else break // no further data
         } catch (error) {
           console.log('axios response', response)
@@ -532,8 +542,8 @@ export class FailsAssets {
       scope +
       '\n' +
       createHash('sha256').update(canonicalRequest).digest('hex')
-    console.log('Canonical Request:\n', canonicalRequest)
-    console.log('stringToSign:\n', stringToSign)
+    // console.log('Canonical Request:\n', canonicalRequest)
+    // console.log('stringToSign:\n', stringToSign)
 
     const DateKey = createHmac('sha256', 'AWS4' + this.s3SK)
       .update(sdate, 'utf8')
@@ -832,8 +842,9 @@ export class FailsAssets {
       const shahex = sha.toString('hex')
       const uri = '/' + shahex
       const path = 'https://' + host + uri
+      const date = new Date()
       const headers = {
-        'Content-Type': mime,
+        Date: date.toUTCString(),
         Host: host,
         'x-amz-content-sha256': this.emptyhash
       }
@@ -843,6 +854,7 @@ export class FailsAssets {
           headers,
           uri,
           verb: 'GET',
+          date,
           hashedpayload: this.emptyhash
         })
         response = await axios.get(path, {
@@ -853,11 +865,16 @@ export class FailsAssets {
           console.log('axios response', response)
           throw new Error('read failed for' + shahex)
         }
+        // in the S3 case, mime is a callback
+        if (response?.headers?.['content-type']) {
+          mime(response?.headers?.['content-type'])
+        } else throw new Error('no mime type from s3')
       } catch (error) {
         console.log('axios response', response)
         console.log('problem axios get', error)
         throw error
       }
+      return response?.data
     } else if (this.savefile === 'openstackswift') {
       let response
       try {
@@ -885,7 +902,8 @@ export class FailsAssets {
     }
   }
 
-  async saveFile(input, sha, mime) {
+  async saveFile(input, sha, mime, size) {
+    // size is optional
     if (this.savefile === 'fs') {
       await this.shamkdirLocal(sha)
       const filename = this.shatofilenameLocal(sha, mime)
@@ -897,8 +915,9 @@ export class FailsAssets {
       const uri = '/' + shahex
       const path = 'https://' + host + uri
       const date = new Date()
+      const length = input?.length || size
       const headers = {
-        'Content-Length': String(input.length),
+        'Content-Length': String(length),
         'Content-Type': mime,
         Date: date.toUTCString(),
         Host: host,
