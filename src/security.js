@@ -566,7 +566,6 @@ export class FailsAssets {
 
   s3Dates(date) {
     const wdate = date || new Date()
-    console.log('s3date debug', wdate)
     const twodigits = (inp) => ('0' + inp).slice(-2)
     const sdate =
       wdate.getUTCFullYear() +
