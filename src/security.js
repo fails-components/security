@@ -375,7 +375,8 @@ export class FailsAssets {
         }
       } catch (error) {
         console.log('axios response', response)
-        console.log('problem axios save', error)
+        console.log('problem axios setup', error)
+        throw new Error('setup assests for openstack failed')
       }
     }
   }
@@ -423,6 +424,7 @@ export class FailsAssets {
         } catch (error) {
           console.log('axios response', response)
           console.log('problem axios get', error)
+          throw error
         }
       }
       return fslist
@@ -774,6 +776,7 @@ export class FailsAssets {
       } catch (error) {
         console.log('axios response', response)
         console.log('problem axios delete', error)
+        throw error
       }
     } else if (this.savefile === 'openstackswift') {
       let response
@@ -790,6 +793,7 @@ export class FailsAssets {
       } catch (error) {
         console.log('axios response', response)
         console.log('problem axios delete', error)
+        throw error
       }
     } else {
       throw new Error('unimplemented delete assets:' + this.savefile)
@@ -833,6 +837,7 @@ export class FailsAssets {
       } catch (error) {
         console.log('axios response', response)
         console.log('problem axios get', error)
+        throw error
       }
     } else if (this.savefile === 'openstackswift') {
       let response
@@ -855,6 +860,7 @@ export class FailsAssets {
       } catch (error) {
         console.log('axios response', response)
         console.log('problem axios get', error)
+        throw error
       }
       return response?.data
     }
@@ -889,6 +895,7 @@ export class FailsAssets {
       } catch (error) {
         console.log('axios response', response)
         console.log('problem axios save', error)
+        throw error
       }
     } else if (this.savefile === 'openstackswift') {
       let response
@@ -910,6 +917,7 @@ export class FailsAssets {
       } catch (error) {
         console.log('axios response', response)
         console.log('problem axios save', error)
+        throw error
       }
     } else throw new Error('unsupported savefile method ' + this.savefile)
   }
