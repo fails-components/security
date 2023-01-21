@@ -502,7 +502,7 @@ export class FailsAssets {
     uri,
     query = '',
     scope,
-    payload = 'UNSIGNED-PAYLOAD',
+    payload = '',
     payloadsha
   }) {
     const cheaders = Object.entries(headers)
@@ -510,6 +510,7 @@ export class FailsAssets {
       .join('')
     let hashedpayload
     if (payloadsha) hashedpayload = payloadsha.toString('hex')
+    else if (payload === 'UNSIGNED-PAYLOAD') hashedpayload = payload
     else hashedpayload = createHash('sha256').update(payload).digest('hex')
 
     const canonicalRequest =
