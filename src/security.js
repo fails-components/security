@@ -532,39 +532,42 @@ export class FailsAssets {
       scope +
       '\n' +
       createHash('sha256').update(canonicalRequest).digest('hex')
+    console.log('Canonical Request:\n', canonicalRequest)
+    console.log('stringToSign:\n', stringToSign)
 
     const DateKey = createHmac('sha256', 'AWS4' + this.s3SK)
       .update(sdate, 'utf8')
-      .digest('hex')
+      .digest()
 
     const DateRegionKey = createHmac('sha256', DateKey)
       .update(this.s3region, 'utf8')
-      .digest('hex')
+      .digest()
     const DateRegionServiceKey = createHmac('sha256', DateRegionKey)
       .update('s3', 'utf8')
-      .digest('hex')
+      .digest()
     const SigningKey = createHmac('sha256', DateRegionServiceKey)
       .update('aws4_request', 'utf8')
-      .digest('hex')
+      .digest()
 
     return createHmac('sha256', SigningKey)
       .update(stringToSign, 'utf8')
       .digest('hex')
   }
 
-  s3Dates() {
-    const date = new Date()
+  s3Dates(date) {
+    const wdate = date || new Date()
+    console.log('s3date debug', wdate)
     const twodigits = (inp) => ('0' + inp).slice(-2)
     const sdate =
-      date.getUTCFullYear() +
-      twodigits(date.getUTCMonth() + 1) +
-      twodigits(date.getUTCDate())
+      wdate.getUTCFullYear() +
+      twodigits(wdate.getUTCMonth() + 1) +
+      twodigits(wdate.getUTCDate())
     const iso8601date =
       sdate +
       'T' +
-      twodigits(date.getUTCHours()) +
-      twodigits(date.getUTCMinutes()) +
-      twodigits(date.getUTCSeconds()) +
+      twodigits(wdate.getUTCHours()) +
+      twodigits(wdate.getUTCMinutes()) +
+      twodigits(wdate.getUTCSeconds()) +
       'Z'
 
     return { sdate, iso8601date }
@@ -576,16 +579,16 @@ export class FailsAssets {
       .map((el) => el.toLowerCase())
       .join(';')
 
-    const { sdate, iso8601date } = this.s3Dates()
+    const { sdate, iso8601date } = this.s3Dates(args.date)
 
-    const scope = sdate + '/' + this.s3region + '/s3'
+    const scope = sdate + '/' + this.s3region + '/s3/aws4_request'
     return (
       'AWS4-HMAC-SHA256' +
       ' Credential=' +
       this.s3AK +
       '/' +
       scope +
-      '/aws4request,' +
+      ',' +
       'SignedHeaders=' +
       signedheaders +
       ',' +
@@ -678,7 +681,7 @@ export class FailsAssets {
         .map((el) => el.toLowerCase())
         .join(';')
       const { sdate, iso8601date } = this.s3Dates()
-      const scope = sdate + '/' + this.s3region + '/s3'
+      const scope = sdate + '/' + this.s3region + '/s3/aws4_request'
       const query =
         'X-Amz-Algorithm=AWS4-HMAC-SHA256' +
         '&X-Amz-Credential=' +
