@@ -885,8 +885,9 @@ export class FailsAssets {
       const path = 'https://' + host + uri
       const headers = {
         host,
-        'Content-Type': mime,
-        'x-amz-content-sha256': shahex
+        'Content-Type': mime
+        /*,
+        'x-amz-content-sha256': shahex */
       }
       let response
       try {
