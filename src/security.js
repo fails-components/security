@@ -766,13 +766,15 @@ export class FailsAssets {
       const host = this.s3bucket + '.' + this.s3host
       const uri = '/' + shahex
       const path = 'https://' + host + uri
-      const headers = { Host: host }
+      const date = new Date()
+      const headers = { Date: date.toUTCString(), Host: host }
       let response
       try {
         headers.Authorization = this.s3AuthHeader({
           headers,
           uri,
-          verb: 'DELETE'
+          verb: 'DELETE',
+          date
         })
         response = await axios.delete(path, {
           headers
