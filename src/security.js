@@ -706,7 +706,7 @@ export class FailsAssets {
         uri,
         verb: 'GET'
       })
-      return path + host + '?' + query + '&X-Amz-Signature=' + signature
+      return path + '?' + query + '&X-Amz-Signature=' + signature
     } else if (this.webservertype === 'nginx') {
       const url = '/' + this.shatofilenameLocal(sha, mimetype)
       const expires = new Date().getTime() + 1000 * 60 * 60 * 24
