@@ -502,12 +502,15 @@ export class FailsAssets {
     uri,
     query = '',
     scope,
-    payload = ''
+    payload = '',
+    payloadsha
   }) {
     const cheaders = Object.entries(headers)
       .map(([key, value]) => key.toLowerCase() + ':' + value.trim() + '\n')
       .join('')
-    const hashedpayload = createHash('sha256').update(payload).digest('hex')
+    let hashedpayload
+    if (payloadsha) hashedpayload = payloadsha.toString('hex')
+    else hashedpayload = createHash('sha256').update(payload).digest('hex')
 
     const canonicalRequest =
       verb +
@@ -877,14 +880,18 @@ export class FailsAssets {
       const shahex = sha.toString('hex')
       const uri = '/' + shahex
       const path = 'https://' + host + uri
-      const headers = { host, 'Content-Type': mime }
+      const headers = {
+        host,
+        'Content-Type': mime,
+        'x-amz-content-sha256': shahex
+      }
       let response
       try {
         headers.Authorization = this.s3AuthHeader({
           headers,
           uri,
           verb: 'PUT',
-          payload: input
+          payloadsha: sha
         })
         response = await axios.put(path, input, {
           headers
