@@ -505,6 +505,7 @@ export class FailsAssets {
     payload = '',
     payloadsha
   }) {
+    console.lof('headers debug', headers)
     const cheaders = Object.entries(headers)
       .map(([key, value]) => key.toLowerCase() + ':' + value.trim() + '\n')
       .join('')
