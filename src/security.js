@@ -683,7 +683,7 @@ export class FailsAssets {
       const shahex = sha.toString('hex')
       const uri = '/' + shahex
       const path = 'https://' + (this.s3alturl || host) + uri
-      const headers = { host }
+      const headers = { Host: this.s3alturl || host }
 
       const expiresInSeconds = 60 * 60 * 24
       const signedheaders = Object.keys(headers)
