@@ -635,16 +635,15 @@ export class FailsAssets {
                     password: this.swiftpassword,
                     domain: {
                       id: this.swiftdomain
-                    },
-                    scope: {
-                      project: {
-                        name: this.swiftproject,
-                        domain: { id: this.swiftdomain }
-                      }
                     }
                   }
                 },
-                scope: {}
+                scope: {
+                  project: {
+                    name: this.swiftproject,
+                    domain: { id: this.swiftdomain }
+                  }
+                }
               }
             }
           },
@@ -674,7 +673,7 @@ export class FailsAssets {
         myrej(error)
       }
     }
-    return token.token
+    return token?.token
   }
 
   getFileURL(sha, mimetype) {
