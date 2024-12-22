@@ -19,6 +19,7 @@
 
 import jwt from 'jsonwebtoken'
 import Redlock from 'redlock'
+import Busboy from '@fastify/busboy'
 import { expressjwt as jwtexpress } from 'express-jwt'
 import { promisify } from 'util'
 import { generateKeyPair, createHash, createHmac } from 'node:crypto'
@@ -349,6 +350,7 @@ export class FailsAssets {
     this.getFileURL = this.getFileURL.bind(this)
     this.saveFile = this.saveFile.bind(this)
     this.saveFileStream = this.saveFileStream.bind(this)
+    this.handleFileUpload = this.handleFileUpload.bind(this)
     this.shadelete = this.shadelete.bind(this)
     this.setupAssets = this.setupAssets.bind(this)
 
@@ -1205,6 +1207,130 @@ export class FailsAssets {
       }
     } else throw new Error('unsupported savefile method ' + this.savefile)
     return { sha256: await digest.promise }
+  }
+
+  async handleFileUpload(
+    req,
+    body,
+    requiredFields,
+    forbiddenFields,
+    filesToUpload,
+    maxFileSize,
+    supportedMime
+  ) {
+    const filesResolve = {}
+    const filesReject = {}
+    const files = {}
+    const filesSizes = {}
+    let forbiddenField
+    for (const file of filesToUpload) {
+      const field = file
+      files[field] = new Promise((resolve, reject) => {
+        filesResolve[field] = resolve
+        filesReject[field] = reject
+      })
+    }
+
+    const bus = new Busboy({ headers: req.headers })
+    bus.on(
+      'file',
+      (fieldname, stream, filename, transferEncoding, mimeType) => {
+        if (!files[fieldname]) return // only download requested files
+        if (forbiddenField) {
+          delete filesResolve[fieldname]
+          delete files[fieldname]
+          filesReject[fieldname](
+            new Error('Forbidden field transmitted before file')
+          )
+          return // we are not allowed to proceed if a forbidden field arrives
+        }
+        if (Object.keys(requiredFields).length !== 0) {
+          delete filesResolve[fieldname]
+          delete files[fieldname]
+          filesReject[fieldname](
+            new Error('Required fields not transmitted before file')
+          )
+          return // we must receive the required fields beforehand!
+        }
+        if (!filesSizes[fieldname]) {
+          delete filesResolve[fieldname]
+          delete files[fieldname]
+          filesReject[fieldname](new Error('File length not transmitted'))
+          return // we must receive the fileSize beforehand!
+        }
+        const fileobj = {
+          filename,
+          stream,
+          fieldname,
+          transferEncoding,
+          mimeType,
+          size: filesSizes[fieldname]
+        }
+        filesResolve[fieldname](fileobj)
+        delete filesReject[fieldname]
+      }
+    )
+
+    bus.on(
+      'field',
+      (
+        fieldname,
+        value,
+        fieldnameTruncated,
+        valueTruncated,
+        transferEncoding,
+        mimeType
+      ) => {
+        if (fieldname == null) return
+        if (fieldnameTruncated || valueTruncated) return
+        if (fieldname.startsWith('SIZE_')) {
+          const fileKey = fieldname.substring(5)
+          const size = (filesSizes[fileKey] = Number(value))
+          if (size > maxFileSize && files[fileKey]) {
+            delete filesResolve[fileKey]
+            delete files[fileKey]
+            filesReject[fileKey](new Error('File length exceeded'))
+          }
+          return
+        }
+        if (requiredFields[fieldname]) {
+          delete requiredFields[fieldname]
+        }
+        if (forbiddenFields[fieldname]) {
+          forbiddenField = fieldname // we encountered a forbidden field
+        }
+        body[fieldname] = value
+      }
+    )
+
+    bus.on('finish', () => {
+      if (!forbiddenField) {
+        // we need to reject the required files
+        for (const [key, value] of Object.entries(filesReject)) {
+          value(new Error('File with key ' + key + ' not transmitted'))
+        }
+      } else {
+        // if we encounter a field forbidden in file download, we do not reject.
+        for (const [, value] of Object.entries(filesResolve)) {
+          value(undefined)
+        }
+      }
+    })
+    req.pipe(bus)
+    return await Promise.all(
+      Object.values(files).map(async (file) => {
+        const curfile = await file
+        if (!curfile) return undefined // no file obtained
+        if (!supportedMime.includes(curfile.mimeType))
+          throw new Error('unsupported mimetype ' + curfile.mimeType)
+        const { sha256 } = await this.saveFileStream(
+          curfile.stream,
+          curfile.mimeType,
+          curfile.size
+        )
+        return sha256
+      })
+    )
   }
 
   mimeToExtension(mime) {
