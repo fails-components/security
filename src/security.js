@@ -1198,7 +1198,7 @@ export class FailsAssets {
         throw error
       }
     } else throw new Error('unsupported savefile method ' + this.savefile)
-    return { sha256: digest }
+    return { sha256: await digest.promise }
   }
 
   mimeToExtension(mime) {
