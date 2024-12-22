@@ -1328,7 +1328,7 @@ export class FailsAssets {
           curfile.mimeType,
           curfile.size
         )
-        return sha256
+        return { sha256, mimeType: curfile.mimeType, size: curfile.size }
       })
     )
   }
