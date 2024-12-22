@@ -1066,6 +1066,7 @@ export class FailsAssets {
         console.log('problem axios save #1', error)
         throw error
       }
+      response = undefined // clear the response
       const sha = await digest.promise
       // second step copy file
       const shahex = sha.toString('hex')
@@ -1074,12 +1075,12 @@ export class FailsAssets {
       try {
         const date = new Date()
         const headers = {
-          /* 'Content-Length': String(length), */
-          'Content-Type': mime,
+          /* 'Content-Length': String(length), 
+          'Content-Type': mime, */
           Date: date.toUTCString(),
           Host: host,
-          'x-amz-content-sha256': this.emptyhash,
-          'x-amz-copy-source': '/' + this.s3bucket + tempUri
+          'x-amz-copy-source': '/' + this.s3bucket + tempUri,
+          'x-amz-content-sha256': this.emptyhash
         }
 
         headers.Authorization = this.s3AuthHeader({
@@ -1101,6 +1102,7 @@ export class FailsAssets {
         console.log('problem axios save #2', error)
         throw error
       }
+      response = undefined // clear the response
       // third step remove temp file
       try {
         const date = new Date()
