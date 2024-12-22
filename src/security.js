@@ -768,6 +768,10 @@ export class FailsAssets {
     return dir + '/' + shahex + this.mimeToExtension(mime)
   }
 
+  async tempmkdirLocal() {
+    await mkdir(this.datadir + '/temp', { recursive: true })
+  }
+
   tempFileLocal() {
     const dir = this.datadir + '/temp/upload-' + randomUUID() + '.tmp'
     return dir
@@ -1010,6 +1014,7 @@ export class FailsAssets {
 
     // size is optional
     if (this.savefile === 'fs') {
+      await this.tempmkdirLocal()
       const tempFileName = this.tempFileLocal()
       const fh = await open(tempFileName, 'w')
       const writeStream = fh.createWriteStream()
