@@ -1075,12 +1075,12 @@ export class FailsAssets {
       try {
         const date = new Date()
         const headers = {
-          /* 'Content-Length': String(length), 
-          'Content-Type': mime, */
+          /* 'Content-Length': String(length), */
+          'Content-Type': mime,
           Date: date.toUTCString(),
           Host: host,
-          'x-amz-copy-source': '/' + this.s3bucket + tempUri /* ,
-          'x-amz-content-sha256': this.emptyhash */
+          // 'x-amz-copy-source': '/' + this.s3bucket + tempUri,
+          'x-amz-content-sha256': this.emptyhash
         }
 
         headers.Authorization = this.s3AuthHeader({
