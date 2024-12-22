@@ -1150,8 +1150,8 @@ export class FailsAssets {
           throw new Error('save failed for temp upload ' + uuid)
         }
       } catch (error) {
-        console.log('axios response', response)
-        console.log('problem axios save', error)
+        console.log('axios response to problem', response)
+        console.log('problem axios save #1 ', error)
         throw error
       }
       const sha = await digest.promise
@@ -1167,16 +1167,18 @@ export class FailsAssets {
             'X-Auth-Token': await this.openstackToken(),
             Destination: this.swiftcontainer + '/' + shahex,
             'Content-Type': mime
-          }
+          },
+          method: 'COPY',
+          url: this.swiftbaseurl + tempPath
         }
-        response = await axios.copy(this.swiftbaseurl + tempPath, config)
+        response = await axios(config)
         if (response?.status !== 201) {
-          console.log('axios response', response)
+          console.log('axios response to problem', response)
           throw new Error('copy failed for' + shahex)
         }
       } catch (error) {
-        console.log('axios response', response)
-        console.log('problem axios save', error)
+        console.log('axios response to problem', response)
+        console.log('problem axios save #2', error)
         throw error
       }
 
@@ -1194,7 +1196,7 @@ export class FailsAssets {
         }
       } catch (error) {
         console.log('axios response', response)
-        console.log('problem axios save', error)
+        console.log('problem axios save #3', error)
         throw error
       }
     } else throw new Error('unsupported savefile method ' + this.savefile)
