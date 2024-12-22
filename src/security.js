@@ -1078,7 +1078,7 @@ export class FailsAssets {
           Date: date.toUTCString(),
           Host: host,
           'x-amz-content-sha256': this.emptyhash,
-          'x-amz-copy-source': this.s3bucket + tempUri
+          'x-amz-copy-source': '/' + this.s3bucket + tempUri
         }
 
         headers.Authorization = this.s3AuthHeader({
