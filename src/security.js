@@ -1062,8 +1062,8 @@ export class FailsAssets {
           throw new Error('save failed for temp upload')
         }
       } catch (error) {
-        console.log('axios response', response)
-        console.log('problem axios save', error)
+        console.log('axios response #1', response)
+        console.log('problem axios save #1', error)
         throw error
       }
       const sha = await digest.promise
@@ -1073,8 +1073,8 @@ export class FailsAssets {
       const shaPath = 'https://' + host + shaUri
       try {
         const headers = {
-          /* 'Content-Length': String(length),
-          'Content-Type': mime, */
+          /* 'Content-Length': String(length), */
+          'Content-Type': mime,
           Date: date.toUTCString(),
           Host: host,
           'x-amz-content-sha256': this.emptyhash,
@@ -1086,18 +1086,18 @@ export class FailsAssets {
           uri: shaUri,
           verb: 'PUT',
           date,
-          hashedpayload: shahex
+          hashedpayload: this.emptyhash
         })
         response = await axios.put(shaPath, {
           headers
         })
         if (response?.status !== 200) {
           console.log('axios response', response)
-          throw new Error('save failed for' + shahex)
+          throw new Error('save copy failed for' + shahex)
         }
       } catch (error) {
-        console.log('axios response #1', response)
-        console.log('problem axios save #1', error)
+        console.log('axios response #2', response)
+        console.log('problem axios save #2', error)
         throw error
       }
       // third step remove temp file
@@ -1105,7 +1105,7 @@ export class FailsAssets {
         const headers = {
           Date: date.toUTCString(),
           Host: host,
-          'x-amz-content-sha256': shahex
+          'x-amz-content-sha256': this.emptyhash
         }
 
         headers.Authorization = this.s3AuthHeader({
@@ -1113,7 +1113,7 @@ export class FailsAssets {
           uri: tempUri,
           verb: 'DELETE',
           date,
-          hashedpayload: shahex
+          hashedpayload: this.emptyhash
         })
         response = await axios.delete(tempPath, {
           headers
@@ -1123,8 +1123,8 @@ export class FailsAssets {
           throw new Error('save failed for' + shahex)
         }
       } catch (error) {
-        console.log('axios response #2', response)
-        console.log('problem axios save #2', error)
+        console.log('axios response #3', response)
+        console.log('problem axios save #3', error)
         throw error
       }
     } else if (this.savefile === 'openstackswift') {
