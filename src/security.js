@@ -1075,11 +1075,11 @@ export class FailsAssets {
       try {
         const date = new Date()
         const headers = {
-          'Content-Length': String(0),
+          /* 'Content-Length': String(length), */
           'Content-Type': mime,
           Date: date.toUTCString(),
           Host: host,
-          // 'x-amz-copy-source': '/' + this.s3bucket + tempUri,
+          'x-amz-copy-source': '/' + this.s3bucket + tempUri,
           'x-amz-content-sha256': this.emptyhash
         }
 
@@ -1090,7 +1090,7 @@ export class FailsAssets {
           date,
           hashedpayload: this.emptyhash
         })
-        response = await axios.put(shaPath, {
+        response = await axios.put(shaPath, null, {
           headers
         })
         if (response?.status !== 200) {
