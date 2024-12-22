@@ -979,12 +979,11 @@ export class FailsAssets {
   async saveFileStream(inputStream, mime, size) {
     const filehash = createHash('sha256')
 
-    const digest = {
-      promise: new Promise((resolve, reject) => {
-        digest.resolve = resolve
-        digest.reject = reject
-      })
-    }
+    const digest = {}
+    digest.promise = new Promise((resolve, reject) => {
+      digest.resolve = resolve
+      digest.reject = reject
+    })
     let lengthCount = 0
     const hashstream = new Transform({
       transform(data, encoding, callback) {
