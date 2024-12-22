@@ -1034,9 +1034,9 @@ export class FailsAssets {
       const uuid = randomUUID()
       const tempUri = '/temp-' + uuid
       const tempPath = 'https://' + host + tempUri
-      const date = new Date()
       let response
       try {
+        const date = new Date()
         const length = size
         const unsignedHash = 'UNSIGNED-PAYLOAD'
         const headers = {
@@ -1072,6 +1072,7 @@ export class FailsAssets {
       const shaUri = '/' + shahex
       const shaPath = 'https://' + host + shaUri
       try {
+        const date = new Date()
         const headers = {
           /* 'Content-Length': String(length), */
           'Content-Type': mime,
@@ -1102,6 +1103,7 @@ export class FailsAssets {
       }
       // third step remove temp file
       try {
+        const date = new Date()
         const headers = {
           Date: date.toUTCString(),
           Host: host,
