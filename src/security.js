@@ -1078,7 +1078,7 @@ export class FailsAssets {
           Date: date.toUTCString(),
           Host: host,
           'x-amz-content-sha256': this.emptyhash,
-          'x-amz-copy-source': this.s3bucket + '/' + tempUri
+          'x-amz-copy-source': this.s3bucket + tempUri
         }
 
         headers.Authorization = this.s3AuthHeader({
@@ -1096,8 +1096,8 @@ export class FailsAssets {
           throw new Error('save failed for' + shahex)
         }
       } catch (error) {
-        console.log('axios response', response)
-        console.log('problem axios save', error)
+        console.log('axios response #1', response)
+        console.log('problem axios save #1', error)
         throw error
       }
       // third step remove temp file
@@ -1123,8 +1123,8 @@ export class FailsAssets {
           throw new Error('save failed for' + shahex)
         }
       } catch (error) {
-        console.log('axios response', response)
-        console.log('problem axios save', error)
+        console.log('axios response #2', response)
+        console.log('problem axios save #2', error)
         throw error
       }
     } else if (this.savefile === 'openstackswift') {
