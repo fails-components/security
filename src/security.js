@@ -22,9 +22,12 @@ import Redlock from 'redlock'
 import { expressjwt as jwtexpress } from 'express-jwt'
 import { promisify } from 'util'
 import { generateKeyPair, createHash, createHmac } from 'node:crypto'
-import { writeFile, mkdir, rm, stat, readdir, open } from 'fs/promises'
+import { Transform } from 'node:stream'
+import { writeFile, mkdir, rm, stat, readdir, open, rename } from 'fs/promises'
 import axios from 'axios'
 import { XMLParser } from 'fast-xml-parser'
+import { randomUUID } from 'crypto'
+import { finished } from 'stream/promises'
 
 // this function converts a new redis object to an old one usable with redlock
 
@@ -764,6 +767,11 @@ export class FailsAssets {
     return dir + '/' + shahex + this.mimeToExtension(mime)
   }
 
+  tempFileLocal() {
+    const dir = this.datadir + '/temp/upload-' + randomUUID() + '.tmp'
+    return dir
+  }
+
   async shadelete(shahex, ext) {
     if (this.savefile === 'fs') {
       const dir =
@@ -965,6 +973,227 @@ export class FailsAssets {
         throw error
       }
     } else throw new Error('unsupported savefile method ' + this.savefile)
+  }
+
+  async saveFileStream(inputStream, mime, size) {
+    const filehash = createHash('sha256')
+
+    const digest = {
+      promise: new Promise((resolve, reject) => {
+        digest.resolve = resolve
+        digest.reject = reject
+      })
+    }
+    let lengthCount = 0
+    const hashstream = new Transform({
+      transform(data, encoding, callback) {
+        filehash.update(data)
+        lengthCount += data.length
+        if (lengthCount > size) {
+          callback(
+            new Error(
+              'Specified length is exceeded in incoming request exceeding:' +
+                size
+            )
+          )
+        } else {
+          callback(null, data)
+        }
+      },
+      flush(callback) {
+        digest.resolve(filehash.digest())
+        callback()
+      }
+    })
+
+    const outputstream = inputStream.pipe(hashstream)
+
+    // size is optional
+    if (this.savefile === 'fs') {
+      const tempFileName = this.tempFileLocal()
+      const fh = await open(tempFileName, 'w')
+      const writeStream = fh.createWriteStream()
+
+      outputstream.pipe(writeStream)
+      await finished(writeStream)
+      writeStream.end()
+      await fh.close()
+
+      const sha = await digest.promise
+      await this.shamkdirLocal(sha)
+      const filename = this.shatofilenameLocal(sha, mime)
+      await rename(tempFileName, filename)
+    } else if (this.savefile === 's3') {
+      const host = this.s3bucket + '.' + this.s3host
+      // first step upload file
+      const uuid = randomUUID()
+      const tempUri = '/temp-' + uuid
+      const tempPath = 'https://' + host + tempUri
+      const date = new Date()
+      let response
+      try {
+        const length = size
+        const unsignedHash = 'UNSIGNED-PAYLOAD'
+        const headers = {
+          'Content-Length': String(length),
+          'Content-Type': mime,
+          Date: date.toUTCString(),
+          Host: host,
+          'x-amz-content-sha256': unsignedHash
+        }
+
+        headers.Authorization = this.s3AuthHeader({
+          headers,
+          uri: tempUri,
+          verb: 'PUT',
+          date,
+          hashedpayload: unsignedHash
+        })
+        response = await axios.put(tempPath, outputstream, {
+          headers
+        })
+        if (response?.status !== 200) {
+          console.log('axios response', response)
+          throw new Error('save failed for temp upload')
+        }
+      } catch (error) {
+        console.log('axios response', response)
+        console.log('problem axios save', error)
+        throw error
+      }
+      const sha = await digest.promise
+      // second step copy file
+      const shahex = sha.toString('hex')
+      const shaUri = '/' + shahex
+      const shaPath = 'https://' + host + shaUri
+      try {
+        const headers = {
+          /* 'Content-Length': String(length),
+          'Content-Type': mime, */
+          Date: date.toUTCString(),
+          Host: host,
+          'x-amz-content-sha256': this.emptyhash,
+          'x-amz-copy-source': this.s3bucket + '/' + tempUri
+        }
+
+        headers.Authorization = this.s3AuthHeader({
+          headers,
+          uri: shaUri,
+          verb: 'PUT',
+          date,
+          hashedpayload: shahex
+        })
+        response = await axios.put(shaPath, {
+          headers
+        })
+        if (response?.status !== 200) {
+          console.log('axios response', response)
+          throw new Error('save failed for' + shahex)
+        }
+      } catch (error) {
+        console.log('axios response', response)
+        console.log('problem axios save', error)
+        throw error
+      }
+      // third step remove temp file
+      try {
+        const headers = {
+          Date: date.toUTCString(),
+          Host: host,
+          'x-amz-content-sha256': shahex
+        }
+
+        headers.Authorization = this.s3AuthHeader({
+          headers,
+          uri: tempUri,
+          verb: 'DELETE',
+          date,
+          hashedpayload: shahex
+        })
+        response = await axios.delete(tempPath, {
+          headers
+        })
+        if (response?.status !== 204) {
+          console.log('axios response', response)
+          throw new Error('save failed for' + shahex)
+        }
+      } catch (error) {
+        console.log('axios response', response)
+        console.log('problem axios save', error)
+        throw error
+      }
+    } else if (this.savefile === 'openstackswift') {
+      let response
+      // upload temp file
+      const uuid = randomUUID()
+      const tempPath =
+        '/v1/' + this.swiftaccount + '/' + this.swiftcontainer + '/temp-' + uuid
+      try {
+        const config = {
+          headers: {
+            'X-Auth-Token': await this.openstackToken(),
+            'Content-Type': mime
+          }
+        }
+        response = await axios.put(
+          this.swiftbaseurl + tempPath,
+          outputstream,
+          config
+        )
+        if (response?.status !== 201) {
+          console.log('axios response', response)
+          throw new Error('save failed for temp upload ' + uuid)
+        }
+      } catch (error) {
+        console.log('axios response', response)
+        console.log('problem axios save', error)
+        throw error
+      }
+      const sha = await digest.promise
+
+      const shahex = sha.toString('hex')
+      // const shaPath =
+      //  '/v1/' + this.swiftaccount + '/' + this.swiftcontainer + '/' + shahex
+
+      // copy temp file to final file
+      try {
+        const config = {
+          headers: {
+            'X-Auth-Token': await this.openstackToken(),
+            Destination: this.swiftcontainer + '/' + shahex,
+            'Content-Type': mime
+          }
+        }
+        response = await axios.copy(this.swiftbaseurl + tempPath, config)
+        if (response?.status !== 201) {
+          console.log('axios response', response)
+          throw new Error('copy failed for' + shahex)
+        }
+      } catch (error) {
+        console.log('axios response', response)
+        console.log('problem axios save', error)
+        throw error
+      }
+
+      // delete temp file
+      try {
+        const config = {
+          headers: {
+            'X-Auth-Token': await this.openstackToken()
+          }
+        }
+        response = await axios.delete(this.swiftbaseurl + tempPath, config)
+        if (response?.status !== 204) {
+          console.log('axios response', response)
+          throw new Error('save failed for' + shahex + 'at delete operation')
+        }
+      } catch (error) {
+        console.log('axios response', response)
+        console.log('problem axios save', error)
+        throw error
+      }
+    } else throw new Error('unsupported savefile method ' + this.savefile)
+    return { sha256: digest }
   }
 
   mimeToExtension(mime) {
