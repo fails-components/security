@@ -1075,7 +1075,7 @@ export class FailsAssets {
       try {
         const date = new Date()
         const headers = {
-          /* 'Content-Length': String(length), */
+          'Content-Length': String(0),
           'Content-Type': mime,
           Date: date.toUTCString(),
           Host: host,
