@@ -1343,6 +1343,8 @@ export class FailsAssets {
         return '.png'
       case 'image/gif':
         return '.gif'
+      case 'application/x-ipynb+json':
+        return '.ipynb'
       default:
         return ''
     }
@@ -1358,6 +1360,8 @@ export class FailsAssets {
         return 'png'
       case 'image/gif':
         return 'gif'
+      case 'application/x-ipynb+json':
+        return 'ipynb'
       default:
         return ''
     }
@@ -1373,6 +1377,8 @@ export class FailsAssets {
         return 'image/png'
       case 'gif':
         return 'image/gif'
+      case 'ipynb':
+        return 'application/x-ipynb+json'
       default:
         return ''
     }
