@@ -929,7 +929,7 @@ export class FailsAssets {
       const path = 'https://' + host + uri
       const date = new Date()
       const length = input?.length || size
-      const headers = {
+      let headers = {
         'Content-Length': String(length),
         'Content-Type': mime,
         Date: date.toUTCString(),
@@ -937,8 +937,9 @@ export class FailsAssets {
         'x-amz-content-sha256': shahex
       }
       const contentDisposition = this.mimeToContentDisposition(mime)
-      if (contentDisposition)
-        headers['Content-Disposition'] = contentDisposition
+      if (contentDisposition) {
+        headers = { 'Content-Disposition': contentDisposition, ...headers }
+      }
       let response
       try {
         headers.Authorization = this.s3AuthHeader({
@@ -1047,7 +1048,7 @@ export class FailsAssets {
         const date = new Date()
         const length = size
         const unsignedHash = 'UNSIGNED-PAYLOAD'
-        const headers = {
+        let headers = {
           'Content-Length': String(length),
           'Content-Type': mime,
           Date: date.toUTCString(),
@@ -1055,8 +1056,9 @@ export class FailsAssets {
           'x-amz-content-sha256': unsignedHash
         }
         const contentDisposition = this.mimeToContentDisposition(mime)
-        if (contentDisposition)
-          headers['Content-Disposition'] = contentDisposition
+        if (contentDisposition) {
+          headers = { 'Content-Disposition': contentDisposition, ...headers }
+        }
 
         headers.Authorization = this.s3AuthHeader({
           headers,
