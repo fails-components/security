@@ -936,6 +936,9 @@ export class FailsAssets {
         Host: host,
         'x-amz-content-sha256': shahex
       }
+      const contentDisposition = this.mimeToContentDisposition(mime)
+      if (contentDisposition)
+        headers['Content-Disposition'] = contentDisposition
       let response
       try {
         headers.Authorization = this.s3AuthHeader({
@@ -969,6 +972,9 @@ export class FailsAssets {
             'Content-Type': mime
           }
         }
+        const contentDisposition = this.mimeToContentDisposition(mime)
+        if (contentDisposition)
+          config.headers['Content-Disposition'] = contentDisposition
         response = await axios.put(this.swiftbaseurl + path, input, config)
         if (response?.status !== 201) {
           console.log('axios response', response)
@@ -1048,6 +1054,9 @@ export class FailsAssets {
           Host: host,
           'x-amz-content-sha256': unsignedHash
         }
+        const contentDisposition = this.mimeToContentDisposition(mime)
+        if (contentDisposition)
+          headers['Content-Disposition'] = contentDisposition
 
         headers.Authorization = this.s3AuthHeader({
           headers,
@@ -1146,6 +1155,9 @@ export class FailsAssets {
             'Content-Type': mime
           }
         }
+        const contentDisposition = this.mimeToContentDisposition(mime)
+        if (contentDisposition)
+          config.headers['Content-Disposition'] = contentDisposition
         response = await axios.put(
           this.swiftbaseurl + tempPath,
           outputstream,
@@ -1379,6 +1391,24 @@ export class FailsAssets {
         return 'image/gif'
       case 'ipynb':
         return 'application/x-ipynb+json'
+      default:
+        return ''
+    }
+  }
+
+  mimeToContentDisposition(mime) {
+    switch (mime) {
+      case 'application/pdf':
+        return undefined
+      case 'image/jpeg':
+        return undefined
+      case 'image/png':
+        return undefined
+      case 'image/gif':
+        return undefined
+      case 'application/x-ipynb+json':
+        return 'attachment'
+      //        return 'attachment; filename="notebook.ipynb"'
       default:
         return ''
     }
