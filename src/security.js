@@ -1409,8 +1409,7 @@ export class FailsAssets {
       case 'image/gif':
         return undefined
       case 'application/x-ipynb+json':
-        return 'attachment'
-      //        return 'attachment; filename="notebook.ipynb"'
+        return 'attachment; filename="notebook.ipynb"'
       default:
         return ''
     }
