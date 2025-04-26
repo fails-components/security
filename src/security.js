@@ -223,6 +223,7 @@ export class FailsJWTVerifier {
             if (err) {
               return next(new Error('Authentification Error'))
             }
+            // eslint-disable-next-line camelcase
             socket.decoded_token = decoded
             console.log('socket authorize worked!')
             next()
@@ -261,6 +262,7 @@ export class FailsJWTVerifier {
   }
 
   express() {
+    // eslint-disable-next-line no-unused-vars
     const secretCallback = async (req, { header, payload }) => {
       const keyid = payload.kid
       const time = Date.now()
@@ -1292,7 +1294,9 @@ export class FailsAssets {
         value,
         fieldnameTruncated,
         valueTruncated,
+        // eslint-disable-next-line no-unused-vars
         transferEncoding,
+        // eslint-disable-next-line no-unused-vars
         mimeType
       ) => {
         if (fieldname == null) return
